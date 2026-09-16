@@ -1,0 +1,52 @@
+{% load static %}
+
+<!doctype html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+    <title>LuxStore</title>
+
+    <link rel="stylesheet"
+          href="{% static 'vendor/bootstrap/css/bootstrap.min.css' %}">
+</head>
+
+<body class="bg-light">
+
+    <div class="container py-5">
+
+        <h1 class="mb-4">LuxStore</h1>
+
+        <div
+            x-data="{ abierto: false }"
+            class="card p-4 shadow-sm"
+        >
+            <button
+                class="btn btn-primary"
+                @click="abierto = !abierto"
+            >
+                Probar Alpine
+            </button>
+
+            <div
+                x-show="abierto"
+                class="alert alert-success mt-3 mb-0"
+            >
+                Bootstrap y Alpine están funcionando localmente.
+            </div>
+        </div>
+
+    </div>
+
+    <script
+        src="{% static 'vendor/bootstrap/js/bootstrap.bundle.min.js' %}">
+    </script>
+
+    <script
+        defer
+        src="{% static 'vendor/alpine/alpine.min.js' %}">
+    </script>
+
+</body>
+</html>
