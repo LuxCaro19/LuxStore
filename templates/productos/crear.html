@@ -1,0 +1,251 @@
+{% extends "base.html" %}
+
+{% block title %}
+Nuevo producto | LuxStore
+{% endblock %}
+
+{% block content %}
+
+<div
+    class="product-page"
+    x-data="{ nombre: '{{ form.nombre.value|default:''|escapejs }}' }"
+>
+
+    <div class="product-page-top">
+        <a
+            href="{% url 'productos:lista' %}"
+            class="back-link"
+        >
+            ← Volver a productos
+        </a>
+    </div>
+
+
+    <form method="post">
+        {% csrf_token %}
+
+        <div class="product-sheet">
+
+            <!-- Cabecera de la ficha -->
+            <div class="product-sheet-header">
+
+                <div class="product-identity">
+
+                    <!-- Espacio reservado para futura fotografía -->
+                    <div class="product-placeholder">
+                        P
+                    </div>
+
+                    <div class="product-heading">
+
+                    <span class="product-eyebrow">
+                        Nuevo producto
+                    </span>
+
+                    <div class="product-title-input">
+                        {{ form.nombre }}
+                    </div>
+
+                    <p>
+                        Información principal del producto.
+                    </p>
+
+                    {% for error in form.nombre.errors %}
+                        <div class="lux-field-error">
+                            {{ error }}
+                        </div>
+                    {% endfor %}
+
+                    </div>
+
+                </div>
+
+
+                <div class="product-active">
+
+                    <div class="product-active-text">
+                        <strong>Activo</strong>
+                        <span>Disponible para venta</span>
+                    </div>
+
+                    <div class="form-check form-switch m-0">
+                        {{ form.activo }}
+                    </div>
+
+                </div>
+
+            </div>
+
+
+            {% if form.non_field_errors %}
+                <div class="product-errors">
+                    {{ form.non_field_errors }}
+                </div>
+            {% endif %}
+
+
+            <!-- Cuerpo dividido -->
+            <div class="product-sections">
+
+                <!-- Información general -->
+                <section class="product-section">
+
+                    <div class="product-section-header">
+
+                        <div>
+                            <h2>Información general</h2>
+                            <p>Datos principales para identificar el producto.</p>
+                        </div>
+
+                    </div>
+
+
+                    <div class="product-fields">
+
+                        <div class="product-field">
+
+                            <label
+                                for="{{ form.codigo_barras.id_for_label }}"
+                                class="lux-label"
+                            >
+                                Código de barras
+                            </label>
+
+                            {{ form.codigo_barras }}
+
+                            <span class="lux-help">
+                                Opcional. Puedes escanearlo o ingresarlo manualmente.
+                            </span>
+
+                            {% for error in form.codigo_barras.errors %}
+                                <div class="lux-field-error">
+                                    {{ error }}
+                                </div>
+                            {% endfor %}
+
+                        </div>
+
+
+                        <div class="product-field">
+
+                            <label
+                                for="{{ form.precio.id_for_label }}"
+                                class="lux-label"
+                            >
+                                Precio de venta
+                            </label>
+
+                            <div class="input-group lux-input-group">
+
+                                <span class="input-group-text lux-input-prefix">
+                                    $
+                                </span>
+
+                                {{ form.precio }}
+
+                            </div>
+
+                            {% for error in form.precio.errors %}
+                                <div class="lux-field-error">
+                                    {{ error }}
+                                </div>
+                            {% endfor %}
+
+                        </div>
+
+                    </div>
+
+                </section>
+
+
+                <!-- Inventario -->
+                <section class="product-section">
+
+                    <div class="product-section-header">
+
+                        <div>
+                            <h2>Inventario</h2>
+                            <p>Control de existencias y reposición.</p>
+                        </div>
+
+                    </div>
+
+
+                    <div class="product-fields">
+
+                        <div class="product-field">
+
+                            <label
+                                for="{{ form.stock_actual.id_for_label }}"
+                                class="lux-label"
+                            >
+                                Stock actual
+                            </label>
+
+                            {{ form.stock_actual }}
+
+                            {% for error in form.stock_actual.errors %}
+                                <div class="lux-field-error">
+                                    {{ error }}
+                                </div>
+                            {% endfor %}
+
+                        </div>
+
+
+                        <div class="product-field">
+
+                            <label
+                                for="{{ form.stock_minimo.id_for_label }}"
+                                class="lux-label"
+                            >
+                                Stock mínimo
+                            </label>
+
+                            {{ form.stock_minimo }}
+
+                            <span class="lux-help">
+                                Se avisará cuando el producto llegue a este nivel.
+                            </span>
+
+                            {% for error in form.stock_minimo.errors %}
+                                <div class="lux-field-error">
+                                    {{ error }}
+                                </div>
+                            {% endfor %}
+
+                        </div>
+
+                    </div>
+
+                </section>
+
+            </div>
+
+
+            <!-- Acciones -->
+            <div class="product-sheet-actions">
+
+                <a
+                    href="{% url 'productos:lista' %}"
+                    class="btn-cancel"
+                >
+                    Cancelar
+                </a>
+
+                <button
+                    type="submit"
+                    class="btn btn-lux product-save"
+                >
+                    Guardar producto
+                </button>
+
+            </div>
+
+        </div>
+
+    </form>
+
+</div>
+
+{% endblock %}

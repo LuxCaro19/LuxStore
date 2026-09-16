@@ -4,49 +4,195 @@
 <html lang="es">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
 
-    <title>LuxStore</title>
+    <meta
+        name="viewport"
+        content="width=device-width, initial-scale=1.0"
+    >
 
-    <link rel="stylesheet"
-          href="{% static 'vendor/bootstrap/css/bootstrap.min.css' %}">
+    <title>
+        {% block title %}LuxStore{% endblock %}
+    </title>
+
+    <link
+        rel="stylesheet"
+        href="{% static 'vendor/bootstrap/css/bootstrap.min.css' %}"
+    >
+
+    <link
+        rel="stylesheet"
+        href="{% static 'css/app.css' %}"
+    >
 </head>
 
-<body class="bg-light">
+<body>
 
-    <div class="container py-5">
+    <div
+        x-data="{ menuAbierto: false }"
+        class="app"
+    >
 
-        <h1 class="mb-4">LuxStore</h1>
+        <!-- Barra superior -->
+        <header class="app-header">
 
-        <div
-            x-data="{ abierto: false }"
-            class="card p-4 shadow-sm"
-        >
             <button
-                class="btn btn-primary"
-                @click="abierto = !abierto"
+                type="button"
+                class="menu-button"
+                @click="menuAbierto = true"
+                aria-label="Abrir menú"
             >
-                Probar Alpine
+                ☰
             </button>
 
-            <div
-                x-show="abierto"
-                class="alert alert-success mt-3 mb-0"
-            >
-                Bootstrap y Alpine están funcionando localmente.
+            <div class="app-brand">
+                LuxStore
             </div>
-        </div>
+
+            <div
+                class="user-menu"
+                x-data="{ abierto: false }"
+            >
+                <button
+                    type="button"
+                    class="user-menu-button"
+                    @click="abierto = !abierto"
+                    @keydown.escape.window="abierto = false"
+                >
+                    <span class="user-name">Admin</span>
+
+                    <span class="user-avatar">
+                        A
+                    </span>
+
+                    <span
+                        class="user-chevron"
+                        :class="{ 'user-chevron-open': abierto }"
+                    >
+                        ▾
+                    </span>
+                </button>
+
+                <div
+                    x-show="abierto"
+                    x-transition
+                    @click.outside="abierto = false"
+                    class="user-dropdown"
+                    style="display: none;"
+                >
+                    <button type="button">
+                        Mi cuenta
+                    </button>
+
+                    <button type="button">
+                        Cambiar contraseña
+                    </button>
+
+                    <div class="user-dropdown-divider"></div>
+
+                    <button
+                        type="button"
+                        class="user-dropdown-danger"
+                    >
+                        Cerrar sesión
+                    </button>
+                </div>
+            </div>
+
+        </header>
+
+
+        <!-- Fondo del menú -->
+        <div
+            x-show="menuAbierto"
+            x-transition.opacity
+            class="menu-overlay"
+            @click="menuAbierto = false"
+            @keydown.escape.window="menuAbierto = false"
+            style="display: none;"
+        ></div>
+
+
+        <!-- Menú lateral -->
+        <aside
+            x-show="menuAbierto"
+            x-transition:enter="menu-enter"
+            x-transition:enter-start="menu-enter-start"
+            x-transition:enter-end="menu-enter-end"
+            x-transition:leave="menu-leave"
+            x-transition:leave-start="menu-leave-start"
+            x-transition:leave-end="menu-leave-end"
+            class="side-menu"
+            style="display: none;"
+        >
+
+            <div class="side-menu-header">
+                <div>
+                    <strong>LuxStore</strong>
+                    <small>by TheLuxCodes</small>
+                </div>
+
+                <button
+                    class="menu-close"
+                    @click="menuAbierto = false"
+                >
+                    ×
+                </button>
+            </div>
+
+            <nav class="side-menu-nav">
+
+                <a href="#">
+                    Venta
+                </a>
+
+                <a href="{% url 'productos:lista' %}">
+                    Productos
+                </a>
+
+                <a href="#">
+                    Inventario
+                </a>
+
+                <a href="#">
+                    Corte diario
+                </a>
+
+                <a href="#">
+                    Usuarios
+                </a>
+
+                <a href="#">
+                    Configuración
+                </a>
+
+            </nav>
+
+        </aside>
+
+
+        <!-- Contenido -->
+        <main class="app-content">
+
+            {% block content %}
+            {% endblock %}
+
+        </main>
 
     </div>
 
+
     <script
-        src="{% static 'vendor/bootstrap/js/bootstrap.bundle.min.js' %}">
-    </script>
+        src="{% static 'vendor/bootstrap/js/bootstrap.bundle.min.js' %}"
+    ></script>
 
     <script
         defer
-        src="{% static 'vendor/alpine/alpine.min.js' %}">
-    </script>
+        src="{% static 'vendor/alpine/alpine.min.js' %}"
+    ></script>
+
+    <script
+        src="{% static 'js/app.js' %}"
+    ></script>
 
 </body>
 </html>

@@ -1,0 +1,154 @@
+{% extends "base.html" %}
+
+{% block title %}
+Productos | LuxStore
+{% endblock %}
+
+{% block content %}
+
+<div class="page-header">
+
+    <div>
+        <h1 class="page-title">
+            Productos
+        </h1>
+
+        <p class="page-subtitle">
+            Administra los productos disponibles en LuxStore.
+        </p>
+    </div>
+
+    <a
+        href="{% url 'productos:crear' %}"
+        class="btn btn-lux"
+    >
+        + Nuevo producto
+    </a>
+
+</div>
+
+
+<form method="get" class="products-search">
+
+    <input
+        type="search"
+        name="q"
+        value="{{ busqueda }}"
+        class="search-box"
+        placeholder="Buscar por nombre o código de barras..."
+        autocomplete="off"
+    >
+
+</form>
+
+
+{% if productos %}
+
+    <div class="products-grid">
+
+        {% for producto in productos %}
+
+            <article class="product-card">
+
+                <div class="product-card-top">
+
+                    <div class="product-card-image">
+                        P
+                    </div>
+
+                    <div class="product-card-status">
+
+                        {% if not producto.activo %}
+                            <span class="status-badge status-inactive">
+                                Inactivo
+                            </span>
+
+                        {% elif producto.stock_actual <= producto.stock_minimo %}
+                            <span class="status-badge status-warning">
+                                Stock bajo
+                            </span>
+
+                        {% else %}
+                            <span class="status-badge status-active">
+                                Activo
+                            </span>
+                        {% endif %}
+
+                    </div>
+
+                </div>
+
+
+                <div class="product-card-body">
+
+                    <h2 class="product-card-name">
+                        {{ producto.nombre }}
+                    </h2>
+
+                    <div class="product-card-code">
+
+                        {% if producto.codigo_barras %}
+                            {{ producto.codigo_barras }}
+                        {% else %}
+                            Sin código de barras
+                        {% endif %}
+
+                    </div>
+
+
+                    <div class="product-card-data">
+
+                        <div>
+                            <span>Precio</span>
+
+                            <strong>
+                                ${{ producto.precio }}
+                            </strong>
+                        </div>
+
+                        <div>
+                            <span>Stock</span>
+
+                            <strong>
+                                {{ producto.stock_actual }}
+                            </strong>
+                        </div>
+
+                    </div>
+
+                </div>
+
+
+                <div class="product-card-footer">
+
+                    <button
+                        type="button"
+                        class="product-card-action"
+                    >
+                        Ver producto
+                        <span>→</span>
+                    </button>
+
+                </div>
+
+            </article>
+
+        {% endfor %}
+
+    </div>
+
+{% else %}
+
+    <div class="products-empty">
+
+        <strong>No encontramos productos</strong>
+
+        <span>
+            Intenta con otro nombre o código de barras.
+        </span>
+
+    </div>
+
+{% endif %}
+
+{% endblock %}
