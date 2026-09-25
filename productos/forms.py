@@ -22,7 +22,6 @@ class ProductoForm(forms.ModelForm):
                     "class": "form-control lux-input product-name-input",
                     "placeholder": "NOMBRE DEL PRODUCTO",
                     "autocomplete": "off",
-                    "x-model": "nombre",
                     "autofocus": True,
                 }
             ),

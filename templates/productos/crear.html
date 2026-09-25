@@ -1,14 +1,60 @@
 {% extends "base.html" %}
 
 {% block title %}
-Nuevo producto | LuxStore
+Nuevo Producto | LuxStore
 {% endblock %}
 
 {% block content %}
 
 <div
     class="product-page"
-    x-data="{ nombre: '{{ form.nombre.value|default:''|escapejs }}' }"
+    x-data="{
+        guardando: false,
+        guardado: false,
+        error: '',
+
+        async guardar() {
+            if (this.guardando) {
+                return;
+            }
+
+            this.guardando = true;
+            this.guardado = false;
+            this.error = '';
+
+            const form = this.$refs.form;
+            const datos = new FormData(form);
+
+            try {
+                const response = await fetch(window.location.href, {
+                    method: 'POST',
+                    body: datos,
+                    credentials: 'same-origin',
+                    headers: {
+                        'X-Requested-With': 'XMLHttpRequest'
+                    }
+                });
+
+                const resultado = await response.json();
+
+                if (!response.ok) {
+                    this.error = 'Revisa los datos ingresados.';
+                    return;
+                }
+
+                this.guardado = true;
+
+                setTimeout(() => {
+                    this.guardado = false;
+                }, 1800);
+
+            } catch (e) {
+                this.error = 'No se pudieron guardar los cambios.';
+            } finally {
+                this.guardando = false;
+            }
+        }
+    }"
 >
 
     <div class="product-page-top">
@@ -21,7 +67,11 @@ Nuevo producto | LuxStore
     </div>
 
 
-    <form method="post">
+    <form
+        method="post"
+        x-ref="form"
+        @submit.prevent="guardar()"
+    >
         {% csrf_token %}
 
         <div class="product-sheet">
@@ -39,7 +89,7 @@ Nuevo producto | LuxStore
                     <div class="product-heading">
 
                     <span class="product-eyebrow">
-                        Nuevo producto
+                        Producto
                     </span>
 
                     <div class="product-title-input">
@@ -226,18 +276,52 @@ Nuevo producto | LuxStore
             <!-- Acciones -->
             <div class="product-sheet-actions">
 
+                <div class="product-save-feedback">
+
+                    <span
+                        x-show="guardado"
+                        x-transition.opacity
+                        class="save-success"
+                        style="display: none;"
+                    >
+                        Guardado ✓
+                    </span>
+
+                    <span
+                        x-show="error"
+                        x-text="error"
+                        class="save-error"
+                        style="display: none;"
+                    ></span>
+
+                </div>
+
+
                 <a
                     href="{% url 'productos:lista' %}"
                     class="btn-cancel"
                 >
-                    Cancelar
+                    Volver
                 </a>
+
 
                 <button
                     type="submit"
                     class="btn btn-lux product-save"
+                    :disabled="guardando"
                 >
-                    Guardar producto
+
+                    <span x-show="!guardando">
+                        Guardar cambios
+                    </span>
+
+                    <span
+                        x-show="guardando"
+                        style="display: none;"
+                    >
+                        Guardando...
+                    </span>
+
                 </button>
 
             </div>
