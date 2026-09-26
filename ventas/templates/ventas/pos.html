@@ -1,0 +1,601 @@
+{% extends "base.html" %}
+
+{% block title %}
+Venta | LuxStore
+{% endblock %}
+
+{% block content %}
+
+<!-- Token CSRF para los POST realizados con fetch -->
+<form style="display: none;">
+    {% csrf_token %}
+</form>
+
+
+<div
+    x-data="{
+        busqueda: '',
+        resultados: [],
+        venta: [],
+        buscando: false,
+
+        cobrando: false,
+        ventaRealizada: false,
+        mensajeCobro: '',
+
+
+        async buscar() {
+
+            const texto = this.busqueda.trim();
+
+            if (!texto) {
+                this.resultados = [];
+                return;
+            }
+
+            this.buscando = true;
+
+            try {
+
+                const respuesta = await fetch(
+                    `{% url 'ventas:buscar_productos' %}?q=${encodeURIComponent(texto)}`
+                );
+
+                const datos = await respuesta.json();
+
+                this.resultados = datos.productos;
+
+            } catch (error) {
+
+                this.resultados = [];
+
+            } finally {
+
+                this.buscando = false;
+
+            }
+        },
+
+
+        agregarPrimero() {
+
+            if (this.resultados.length === 1) {
+                this.agregarProducto(this.resultados[0]);
+            }
+
+        },
+
+
+        agregarProducto(producto) {
+
+            const existente = this.venta.find(
+                item => item.id === producto.id
+            );
+
+            if (existente) {
+
+                existente.cantidad += 1;
+
+            } else {
+
+                this.venta.push({
+                    ...producto,
+                    cantidad: 1
+                });
+
+            }
+
+            this.busqueda = '';
+            this.resultados = [];
+
+            this.mensajeCobro = '';
+            this.ventaRealizada = false;
+
+            this.$nextTick(() => {
+                this.$refs.busqueda.focus();
+            });
+        },
+
+
+        aumentar(item) {
+            item.cantidad += 1;
+        },
+
+
+        disminuir(item) {
+
+            if (item.cantidad > 1) {
+
+                item.cantidad -= 1;
+
+            } else {
+
+                this.eliminar(item);
+
+            }
+
+        },
+
+
+        eliminar(item) {
+
+            this.venta = this.venta.filter(
+                producto => producto.id !== item.id
+            );
+
+        },
+
+
+        total() {
+
+            return this.venta.reduce(
+                (total, item) =>
+                    total + (item.precio * item.cantidad),
+                0
+            );
+
+        },
+
+
+        moneda(valor) {
+
+            return '$' + new Intl.NumberFormat(
+                'es-CL'
+            ).format(valor);
+
+        },
+
+
+        async confirmarVenta() {
+
+            if (this.venta.length === 0 || this.cobrando) {
+                return;
+            }
+
+            this.cobrando = true;
+            this.ventaRealizada = false;
+            this.mensajeCobro = '';
+
+            const csrfToken = document.querySelector(
+                '[name=csrfmiddlewaretoken]'
+            ).value;
+
+            const items = this.venta.map(item => ({
+                id: item.id,
+                cantidad: item.cantidad
+            }));
+
+            try {
+
+                const respuesta = await fetch(
+                    `{% url 'ventas:confirmar_venta' %}`,
+                    {
+                        method: 'POST',
+
+                        credentials: 'same-origin',
+
+                        headers: {
+                            'Content-Type': 'application/json',
+                            'X-CSRFToken': csrfToken,
+                            'X-Requested-With': 'XMLHttpRequest'
+                        },
+
+                        body: JSON.stringify({
+                            items: items
+                        })
+                    }
+                );
+
+                const datos = await respuesta.json();
+
+                if (!respuesta.ok) {
+
+                    this.mensajeCobro =
+                        datos.mensaje
+                        || 'No fue posible registrar la venta.';
+
+                    return;
+                }
+
+                this.venta = [];
+                this.busqueda = '';
+                this.resultados = [];
+
+                this.ventaRealizada = true;
+
+                this.mensajeCobro =
+                    `Venta #${datos.venta_id} registrada correctamente`;
+
+                setTimeout(() => {
+
+                    this.ventaRealizada = false;
+                    this.mensajeCobro = '';
+
+                }, 2500);
+
+                this.$nextTick(() => {
+                    this.$refs.busqueda.focus();
+                });
+
+            } catch (error) {
+
+                this.mensajeCobro =
+                    'No fue posible conectar con el servidor.';
+
+            } finally {
+
+                this.cobrando = false;
+
+            }
+        }
+    }"
+>
+
+
+    <!-- ENCABEZADO -->
+    <!--<div class="page-header">
+
+        <div>
+
+            <h1 class="page-title">
+                Venta
+            </h1>
+
+            <p class="page-subtitle">
+                Registra una nueva venta.
+            </p>
+
+        </div>
+
+    </div>-->
+
+
+
+    <div class="pos-layout">
+
+
+        <!-- =====================================================
+             PRODUCTOS
+             ===================================================== -->
+        <section class="pos-products">
+
+            <div class="pos-panel">
+
+
+                <div class="pos-panel-header">
+
+                    <div>
+
+                        <h2>
+                            Agregar productos
+                        </h2>
+
+                        <p>
+                            Busca por nombre o escanea un código de barras.
+                        </p>
+
+                    </div>
+
+                </div>
+
+
+
+                <!-- BUSCADOR -->
+                <div class="pos-search-wrapper">
+
+                    <input
+                        type="search"
+                        x-ref="busqueda"
+                        x-model="busqueda"
+                        @input.debounce.250ms="buscar()"
+                        @keydown.enter.prevent="agregarPrimero()"
+                        class="pos-search-input"
+                        placeholder="Escanea código o busca un producto..."
+                        autocomplete="off"
+                        autofocus
+                    >
+
+
+
+                    <!-- RESULTADOS -->
+                    <div
+                        class="pos-search-results"
+                        x-show="busqueda.trim().length > 0"
+                        x-cloak
+                    >
+
+
+                        <div
+                            class="pos-searching"
+                            x-show="buscando"
+                        >
+                            Buscando...
+                        </div>
+
+
+
+                        <template
+                            x-if="
+                                !buscando
+                                && resultados.length === 0
+                            "
+                        >
+
+                            <div class="pos-no-results">
+                                No encontramos productos.
+                            </div>
+
+                        </template>
+
+
+
+                        <template
+                            x-for="producto in resultados"
+                            :key="producto.id"
+                        >
+
+                            <button
+                                type="button"
+                                class="pos-result"
+                                @click="agregarProducto(producto)"
+                            >
+
+
+                                <div class="pos-result-main">
+
+                                    <strong
+                                        x-text="producto.nombre"
+                                    ></strong>
+
+                                    <span
+                                        x-text="
+                                            producto.codigo_barras
+                                            || 'Sin código de barras'
+                                        "
+                                    ></span>
+
+                                </div>
+
+
+
+                                <div class="pos-result-info">
+
+                                    <strong
+                                        x-text="
+                                            moneda(producto.precio)
+                                        "
+                                    ></strong>
+
+                                    <span>
+
+                                        Stock
+
+                                        <span
+                                            x-text="
+                                                producto.stock_actual
+                                            "
+                                        ></span>
+
+                                    </span>
+
+                                </div>
+
+
+                            </button>
+
+                        </template>
+
+
+                    </div>
+
+                </div>
+
+            </div>
+
+        </section>
+
+
+
+        <!-- =====================================================
+             VENTA ACTUAL
+             ===================================================== -->
+        <aside class="pos-current-sale">
+
+            <div class="pos-panel pos-sale-panel">
+
+
+                <div class="pos-panel-header">
+
+                    <div>
+
+                        <h2>
+                            Venta actual
+                        </h2>
+
+                        <p
+                            x-show="venta.length > 0"
+                            x-text="
+                                venta.length === 1
+                                ? '1 producto'
+                                : venta.length + ' productos'
+                            "
+                        ></p>
+
+                    </div>
+
+                </div>
+
+
+
+                <!-- MENSAJE DE COBRO -->
+                <div
+                    class="pos-sale-message"
+                    x-show="mensajeCobro"
+                    x-transition.opacity
+                    x-cloak
+                    :class="
+                        ventaRealizada
+                        ? 'success'
+                        : 'error'
+                    "
+                    x-text="mensajeCobro"
+                ></div>
+
+
+
+                <!-- VENTA VACÍA -->
+                <div
+                    class="pos-empty-sale"
+                    x-show="venta.length === 0"
+                >
+
+                    <strong>
+                        Todavía no hay productos
+                    </strong>
+
+                    <span>
+                        Agrega un producto para comenzar la venta.
+                    </span>
+
+                </div>
+
+
+
+                <!-- PRODUCTOS DE LA VENTA -->
+                <div
+                    class="pos-sale-items"
+                    x-show="venta.length > 0"
+                    x-cloak
+                >
+
+                    <template
+                        x-for="item in venta"
+                        :key="item.id"
+                    >
+
+                        <div class="pos-sale-item">
+
+
+                            <div class="pos-sale-item-main">
+
+                                <strong
+                                    x-text="item.nombre"
+                                ></strong>
+
+                                <span
+                                    x-text="
+                                        moneda(item.precio)
+                                    "
+                                ></span>
+
+                            </div>
+
+
+
+                            <div class="pos-sale-item-bottom">
+
+
+                                <!-- CANTIDAD -->
+                                <div class="pos-quantity">
+
+                                    <button
+                                        type="button"
+                                        @click="disminuir(item)"
+                                    >
+                                        −
+                                    </button>
+
+
+                                    <span
+                                        x-text="item.cantidad"
+                                    ></span>
+
+
+                                    <button
+                                        type="button"
+                                        @click="aumentar(item)"
+                                    >
+                                        +
+                                    </button>
+
+                                </div>
+
+
+
+                                <!-- SUBTOTAL -->
+                                <strong
+                                    class="pos-sale-subtotal"
+                                    x-text="
+                                        moneda(
+                                            item.precio
+                                            * item.cantidad
+                                        )
+                                    "
+                                ></strong>
+
+
+                            </div>
+
+                        </div>
+
+                    </template>
+
+                </div>
+
+
+
+                <!-- TOTAL Y COBRO -->
+                <div
+                    class="pos-sale-total"
+                    x-show="venta.length > 0"
+                    x-cloak
+                >
+
+                    <div>
+
+                        <span>
+                            Total
+                        </span>
+
+                        <strong
+                            x-text="moneda(total())"
+                        ></strong>
+
+                    </div>
+
+
+
+                    <button
+                        type="button"
+                        class="btn btn-lux pos-pay-button"
+                        @click="confirmarVenta()"
+                        :disabled="cobrando"
+                    >
+
+                        <span
+                            x-show="!cobrando"
+                        >
+                            Cobrar
+                        </span>
+
+                        <span
+                            x-show="cobrando"
+                            style="display: none;"
+                        >
+                            Procesando...
+                        </span>
+
+                    </button>
+
+                </div>
+
+
+            </div>
+
+        </aside>
+
+    </div>
+
+</div>
+
+{% endblock %}

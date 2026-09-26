@@ -18,4 +18,11 @@ urlpatterns = [
         "productos/",
         include("productos.urls"),
     ),
+
+    path(
+        "ventas/",
+        include("ventas.urls"),
+    ),
+
+    
 ]

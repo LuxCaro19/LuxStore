@@ -48,90 +48,118 @@ Productos | LuxStore
 
         {% for producto in productos %}
 
-            <article class="product-card">
+            <a
+                href="{% url 'productos:editar' producto.pk %}"
+                class="product-card-link-wrapper"
+            >
 
-                <div class="product-card-top">
+                <article class="product-card">
 
-                    <div class="product-card-image">
-                        P
-                    </div>
+                    <div class="product-card-top">
 
-                    <div class="product-card-status">
-
-                        {% if not producto.activo %}
-                            <span class="status-badge status-inactive">
-                                Inactivo
-                            </span>
-
-                        {% elif producto.stock_actual <= producto.stock_minimo %}
-                            <span class="status-badge status-warning">
-                                Stock bajo
-                            </span>
-
-                        {% else %}
-                            <span class="status-badge status-active">
-                                Activo
-                            </span>
-                        {% endif %}
-
-                    </div>
-
-                </div>
-
-
-                <div class="product-card-body">
-
-                    <h2 class="product-card-name">
-                        {{ producto.nombre }}
-                    </h2>
-
-                    <div class="product-card-code">
-
-                        {% if producto.codigo_barras %}
-                            {{ producto.codigo_barras }}
-                        {% else %}
-                            Sin código de barras
-                        {% endif %}
-
-                    </div>
-
-
-                    <div class="product-card-data">
-
-                        <div>
-                            <span>Precio</span>
-
-                            <strong>
-                                ${{ producto.precio }}
-                            </strong>
+                        <div class="product-card-image">
+                            P
                         </div>
 
-                        <div>
-                            <span>Stock</span>
 
-                            <strong>
-                                {{ producto.stock_actual }}
-                            </strong>
+                        <div class="product-card-status">
+
+                            {% if not producto.activo %}
+
+                                <span class="status-badge status-inactive">
+                                    Inactivo
+                                </span>
+
+                            {% elif producto.stock_actual <= producto.stock_minimo %}
+
+                                <span class="status-badge status-warning">
+                                    Stock bajo
+                                </span>
+
+                            {% else %}
+
+                                <span class="status-badge status-active">
+                                    Activo
+                                </span>
+
+                            {% endif %}
+
                         </div>
 
                     </div>
 
-                </div>
+
+                    <div class="product-card-body">
+
+                        <h2 class="product-card-name">
+                            {{ producto.nombre }}
+                        </h2>
 
 
-                <div class="product-card-footer">
+                        <div class="product-card-code">
 
-                    <a
-                        href="{% url 'productos:editar' producto.pk %}"
-                        class="product-card-action"
-                    >
-                        Ver producto
-                        <span>→</span>
-                    </a>
+                            {% if producto.codigo_barras %}
 
-                </div>
+                                {{ producto.codigo_barras }}
 
-            </article>
+                            {% else %}
+
+                                Sin código de barras
+
+                            {% endif %}
+
+                        </div>
+
+
+                        <div class="product-card-data">
+
+                            <div>
+
+                                <span>
+                                    Precio
+                                </span>
+
+                                <strong>
+                                    ${{ producto.precio }}
+                                </strong>
+
+                            </div>
+
+
+                            <div>
+
+                                <span>
+                                    Stock
+                                </span>
+
+                                <strong>
+                                    {{ producto.stock_actual }}
+                                </strong>
+
+                            </div>
+
+                        </div>
+
+                    </div>
+
+
+                    <div class="product-card-footer">
+
+                        <div class="product-card-action">
+
+                            Ver producto
+
+                            <span>
+                                →
+                            </span>
+
+                        </div>
+
+                    </div>
+
+                </article>
+
+            </a>
 
         {% endfor %}
 
@@ -141,7 +169,9 @@ Productos | LuxStore
 
     <div class="products-empty">
 
-        <strong>No encontramos productos</strong>
+        <strong>
+            No encontramos productos
+        </strong>
 
         <span>
             Intenta con otro nombre o código de barras.
