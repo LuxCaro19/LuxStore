@@ -44,6 +44,7 @@ def buscar_productos(request):
             "codigo_barras": producto.codigo_barras,
             "precio": producto.precio,
             "stock_actual": producto.stock_actual,
+            "stock_minimo": producto.stock_minimo,
         }
         for producto in productos
     ]

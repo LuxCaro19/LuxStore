@@ -18,10 +18,43 @@ Venta | LuxStore
         resultados: [],
         venta: [],
         buscando: false,
+        productoDetalle: null,
 
         cobrando: false,
         ventaRealizada: false,
         mensajeCobro: '',
+        mostrarConfirmacion: false,
+
+        abrirConfirmacion() {
+
+            if (this.venta.length === 0) {
+                return;
+            }
+
+            this.mensajeCobro = '';
+            this.mostrarConfirmacion = true;
+        },
+
+        cerrarConfirmacion() {
+
+            if (this.cobrando) {
+                return;
+            }
+
+            this.mostrarConfirmacion = false;
+
+            this.$nextTick(() => {
+                this.$refs.busqueda.focus();
+            });
+        },
+
+        totalUnidades() {
+
+            return this.venta.reduce(
+                (total, item) => total + item.cantidad,
+                0
+            );
+        },
 
 
         async buscar() {
@@ -57,12 +90,19 @@ Venta | LuxStore
         },
 
 
-        agregarPrimero() {
+        async agregarPrimero() {
+
+            const texto = this.busqueda.trim();
+
+            if (!texto) {
+                return;
+            }
+
+            await this.buscar();
 
             if (this.resultados.length === 1) {
                 this.agregarProducto(this.resultados[0]);
             }
-
         },
 
 
@@ -85,6 +125,9 @@ Venta | LuxStore
 
             }
 
+            // Mostramos el último producto leído
+            this.productoDetalle = producto;
+
             this.busqueda = '';
             this.resultados = [];
 
@@ -94,6 +137,20 @@ Venta | LuxStore
             this.$nextTick(() => {
                 this.$refs.busqueda.focus();
             });
+        },
+
+        cantidadEnVenta(producto) {
+
+            const item = this.venta.find(
+                item => item.id === producto.id
+            );
+
+            return item ? item.cantidad : 0;
+        },
+
+        stockBajo(producto) {
+
+            return producto.stock_actual <= producto.stock_minimo;
         },
 
 
@@ -200,6 +257,7 @@ Venta | LuxStore
                 this.venta = [];
                 this.busqueda = '';
                 this.resultados = [];
+                this.mostrarConfirmacion = false;
 
                 this.ventaRealizada = true;
 
@@ -228,6 +286,9 @@ Venta | LuxStore
 
             }
         }
+
+
+        
     }"
 >
 
@@ -387,6 +448,114 @@ Venta | LuxStore
 
 
                     </div>
+
+                </div>
+
+                <!-- DETALLE DEL ÚLTIMO PRODUCTO -->
+                <div
+                    class="pos-product-preview"
+                    x-show="productoDetalle"
+                    x-transition.opacity
+                    x-cloak
+                >
+
+                    <template x-if="productoDetalle">
+
+                        <div class="pos-product-preview-card">
+
+                            <div class="pos-product-preview-top">
+
+                                <div class="pos-product-preview-image">
+                                    P
+                                </div>
+
+
+                                <div class="pos-product-preview-heading">
+
+                                    <span class="pos-product-preview-eyebrow">
+                                        Producto agregado
+                                    </span>
+
+                                    <h3
+                                        x-text="productoDetalle.nombre"
+                                    ></h3>
+
+                                    <span
+                                        class="pos-product-preview-code"
+                                        x-text="
+                                            productoDetalle.codigo_barras
+                                            || 'Sin código de barras'
+                                        "
+                                    ></span>
+
+                                </div>
+
+
+                                <div
+                                    class="pos-product-stock-badge"
+                                    x-show="stockBajo(productoDetalle)"
+                                >
+                                    <span></span>
+                                    Stock bajo
+                                </div>
+
+                            </div>
+
+
+                            <div class="pos-product-preview-data">
+
+                                <div>
+
+                                    <span>
+                                        Precio
+                                    </span>
+
+                                    <strong
+                                        x-text="moneda(productoDetalle.precio)"
+                                    ></strong>
+
+                                </div>
+
+
+                                <div>
+
+                                    <span>
+                                        Stock disponible
+                                    </span>
+
+                                    <strong
+                                        x-text="productoDetalle.stock_actual"
+                                    ></strong>
+
+                                </div>
+
+
+                                <div>
+
+                                    <span>
+                                        En esta venta
+                                    </span>
+
+                                    <strong
+                                        x-text="cantidadEnVenta(productoDetalle)"
+                                    ></strong>
+
+                                </div>
+
+                            </div>
+
+
+                            <div
+                                class="pos-product-stock-warning"
+                                x-show="stockBajo(productoDetalle)"
+                                x-cloak
+                            >
+                                El producto se encuentra en su nivel mínimo de stock.
+                            </div>
+
+                        </div>
+
+                    </template>
 
                 </div>
 
@@ -568,23 +737,9 @@ Venta | LuxStore
                     <button
                         type="button"
                         class="btn btn-lux pos-pay-button"
-                        @click="confirmarVenta()"
-                        :disabled="cobrando"
+                        @click="abrirConfirmacion()"
                     >
-
-                        <span
-                            x-show="!cobrando"
-                        >
-                            Cobrar
-                        </span>
-
-                        <span
-                            x-show="cobrando"
-                            style="display: none;"
-                        >
-                            Procesando...
-                        </span>
-
+                        Cobrar
                     </button>
 
                 </div>
@@ -593,6 +748,125 @@ Venta | LuxStore
             </div>
 
         </aside>
+
+    </div>
+
+    <!-- CONFIRMACIÓN DE VENTA -->
+    <div
+        class="lux-confirm-backdrop"
+        x-show="mostrarConfirmacion"
+        x-transition.opacity
+        x-cloak
+        @click.self="cerrarConfirmacion()"
+        @keydown.escape.window="cerrarConfirmacion()"
+    >
+
+        <div
+            class="lux-confirm-card"
+            x-show="mostrarConfirmacion"
+            x-transition
+        >
+
+            <div class="lux-confirm-header">
+
+                <div>
+                    <span class="lux-confirm-eyebrow">
+                        Venta actual
+                    </span>
+
+                    <h2>
+                        Confirmar venta
+                    </h2>
+
+                    <p>
+                        Revisa el total antes de continuar.
+                    </p>
+                </div>
+
+
+                <button
+                    type="button"
+                    class="lux-confirm-close"
+                    @click="cerrarConfirmacion()"
+                    :disabled="cobrando"
+                >
+                    ×
+                </button>
+
+            </div>
+
+
+            <div class="lux-confirm-total">
+
+                <span>
+                    Total a cobrar
+                </span>
+
+                <strong
+                    x-text="moneda(total())"
+                ></strong>
+
+            </div>
+
+
+            <div class="lux-confirm-info">
+
+                <span>
+                    <strong x-text="venta.length"></strong>
+                    productos
+                </span>
+
+                <span>
+                    <strong x-text="totalUnidades()"></strong>
+                    unidades
+                </span>
+
+            </div>
+
+
+            <div
+                class="lux-confirm-error"
+                x-show="mensajeCobro && !ventaRealizada"
+                x-text="mensajeCobro"
+                x-cloak
+            ></div>
+
+
+            <div class="lux-confirm-actions">
+
+                <button
+                    type="button"
+                    class="btn-cancel"
+                    @click="cerrarConfirmacion()"
+                    :disabled="cobrando"
+                >
+                    Cancelar
+                </button>
+
+
+                <button
+                    type="button"
+                    class="btn btn-lux lux-confirm-button"
+                    @click="confirmarVenta()"
+                    :disabled="cobrando"
+                >
+
+                    <span x-show="!cobrando">
+                        Confirmar venta
+                    </span>
+
+                    <span
+                        x-show="cobrando"
+                        style="display: none;"
+                    >
+                        Procesando...
+                    </span>
+
+                </button>
+
+            </div>
+
+        </div>
 
     </div>
 
