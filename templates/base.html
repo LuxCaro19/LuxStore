@@ -148,15 +148,24 @@
                     Venta
                 </a>
 
-                <a href="{% url 'productos:lista' %}">
+                <a
+                    href="{% url 'productos:lista' %}"
+                    class="sidebar-link"
+                >
                     Productos
                 </a>
 
-                <a href="#">
+                <a
+                    href="{% url 'productos:inventario' %}"
+                    class="sidebar-link"
+                >
                     Inventario
                 </a>
 
-                <a href="#">
+                <a
+                    href="{% url 'ventas:corte_diario' %}"
+                    class="sidebar-link"
+                >
                     Corte diario
                 </a>
 

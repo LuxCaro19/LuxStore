@@ -19,4 +19,10 @@ urlpatterns = [
         views.confirmar_venta,
         name="confirmar_venta",
     ),
+
+    path(
+        "corte-diario/",
+        views.corte_diario,
+        name="corte_diario",
+    ),
 ]

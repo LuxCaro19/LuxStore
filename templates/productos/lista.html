@@ -28,29 +28,34 @@ Productos | LuxStore
 </div>
 
 
-<form method="get" class="products-search">
+<div class="products-search">
 
     <input
         type="search"
-        name="q"
-        value="{{ busqueda }}"
+        id="product-search"
         class="search-box"
         placeholder="Buscar por nombre o código de barras..."
         autocomplete="off"
     >
 
-</form>
+</div>
 
 
 {% if productos %}
 
-    <div class="products-grid">
+    <div
+        class="products-grid"
+        id="products-grid"
+    >
 
         {% for producto in productos %}
 
             <a
                 href="{% url 'productos:editar' producto.pk %}"
                 class="product-card-link-wrapper"
+                data-product-card
+                data-name="{{ producto.nombre|lower }}"
+                data-code="{{ producto.codigo_barras|default:''|lower }}"
             >
 
                 <article class="product-card">
@@ -163,6 +168,20 @@ Productos | LuxStore
 
         {% endfor %}
 
+    </div>
+
+    <div
+        class="products-live-empty"
+        id="products-live-empty"
+        hidden
+    >
+        <strong>
+            No encontramos productos
+        </strong>
+
+        <span>
+            Intenta con otro nombre o código de barras.
+        </span>
     </div>
 
 {% else %}

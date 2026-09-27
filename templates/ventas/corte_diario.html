@@ -1,0 +1,151 @@
+{% extends "base.html" %}
+
+{% block title %}
+Corte diario | LuxStore
+{% endblock %}
+
+{% block content %}
+
+<div class="page-header">
+
+    <div>
+        <h1 class="page-title">
+            Corte diario
+        </h1>
+
+        <p class="page-subtitle">
+            Resumen de las ventas realizadas hoy.
+        </p>
+    </div>
+
+    <div class="daily-date">
+        {{ hoy|date:"d/m/Y" }}
+    </div>
+
+</div>
+
+
+<div
+    class="daily-cut"
+    x-data="{
+        moneda(valor) {
+            return '$' + new Intl.NumberFormat(
+                'es-CL'
+            ).format(valor);
+        }
+    }"
+>
+
+    <!-- RESUMEN -->
+    <div class="daily-summary">
+
+        <div class="daily-summary-card">
+
+            <span class="daily-summary-label">
+                Ventas realizadas
+            </span>
+
+            <strong class="daily-summary-value">
+                {{ cantidad_ventas }}
+            </strong>
+
+            <span class="daily-summary-help">
+                Operaciones completadas hoy
+            </span>
+
+        </div>
+
+
+        <div class="daily-summary-card daily-summary-main">
+
+            <span class="daily-summary-label">
+                Total vendido
+            </span>
+
+            <strong
+                class="daily-summary-total"
+                x-text="moneda({{ total_vendido }})"
+            ></strong>
+
+            <span class="daily-summary-help">
+                Acumulado del día
+            </span>
+
+        </div>
+
+    </div>
+
+
+    <!-- ÚLTIMAS VENTAS -->
+    <section class="daily-sales-card">
+
+        <div class="daily-sales-header">
+
+            <div>
+                <h2>
+                    Últimas ventas
+                </h2>
+
+                <p>
+                    Movimientos registrados durante el día.
+                </p>
+            </div>
+
+        </div>
+
+
+        {% if ultimas_ventas %}
+
+            <div class="daily-sales-list">
+
+                {% for venta in ultimas_ventas %}
+
+                    <div class="daily-sale-row">
+
+                        <div class="daily-sale-number">
+                            #{{ venta.id }}
+                        </div>
+
+
+                        <div class="daily-sale-time">
+                            {{ venta.creada_en|date:"H:i" }}
+                        </div>
+
+
+                        <div class="daily-sale-status">
+                            Completada
+                        </div>
+
+
+                        <div
+                            class="daily-sale-total"
+                            x-text="moneda({{ venta.total }})"
+                        ></div>
+
+                    </div>
+
+                {% endfor %}
+
+            </div>
+
+        {% else %}
+
+            <div class="daily-sales-empty">
+
+                <strong>
+                    Todavía no hay ventas hoy
+                </strong>
+
+                <span>
+                    Las ventas completadas aparecerán aquí.
+                </span>
+
+            </div>
+
+        {% endif %}
+
+    </section>
+
+</div>
+
+{% endblock %}

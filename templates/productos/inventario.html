@@ -1,0 +1,224 @@
+{% extends "base.html" %}
+
+{% block title %}
+Inventario | LuxStore
+{% endblock %}
+
+{% block content %}
+
+<div class="page-header">
+
+    <div>
+        <h1 class="page-title">
+            Inventario
+        </h1>
+
+        <p class="page-subtitle">
+            Revisa las existencias y niveles mínimos de tus productos.
+        </p>
+    </div>
+
+</div>
+
+
+<!-- RESUMEN -->
+<div class="inventory-summary">
+
+    <div class="inventory-summary-card">
+
+        <span>
+            Productos activos
+        </span>
+
+        <strong>
+            {{ total_productos }}
+        </strong>
+
+        <small>
+            Productos disponibles para venta
+        </small>
+
+    </div>
+
+
+    <div class="inventory-summary-card">
+
+        <span>
+            Stock bajo
+        </span>
+
+        <strong>
+            {{ productos_quiebre }}
+        </strong>
+
+        <small>
+            Productos en nivel de reposición
+        </small>
+
+    </div>
+
+
+    <div class="inventory-summary-card">
+
+        <span>
+            Sin stock
+        </span>
+
+        <strong>
+            {{ productos_sin_stock }}
+        </strong>
+
+        <small>
+            Productos agotados
+        </small>
+
+    </div>
+
+</div>
+
+
+<!-- BUSCADOR -->
+<form method="get" class="inventory-search">
+
+    <input
+        type="search"
+        name="q"
+        value="{{ busqueda }}"
+        class="search-box"
+        placeholder="Buscar por nombre o código de barras..."
+        autocomplete="off"
+    >
+
+</form>
+
+
+<!-- PRODUCTOS -->
+{% if productos %}
+
+    <div class="inventory-grid">
+
+        {% for producto in productos %}
+
+            <a
+                href="{% url 'productos:editar' producto.pk %}"
+                class="inventory-card"
+            >
+
+                <div class="inventory-card-top">
+
+                    <div class="inventory-product-image">
+                        P
+                    </div>
+
+
+                    {% if producto.stock_actual == 0 %}
+
+                        <span class="inventory-status inventory-status-empty">
+                            Sin stock
+                        </span>
+
+                    {% elif producto.stock_actual <= producto.stock_minimo %}
+
+                        <span class="inventory-status inventory-status-low">
+                            Stock bajo
+                        </span>
+
+                    {% else %}
+
+                        <span class="inventory-status inventory-status-ok">
+                            Disponible
+                        </span>
+
+                    {% endif %}
+
+                </div>
+
+
+                <div class="inventory-card-body">
+
+                    <h2>
+                        {{ producto.nombre }}
+                    </h2>
+
+                    <span class="inventory-code">
+
+                        {% if producto.codigo_barras %}
+                            {{ producto.codigo_barras }}
+                        {% else %}
+                            Sin código de barras
+                        {% endif %}
+
+                    </span>
+
+
+                    <div class="inventory-stock-data">
+
+                        <div>
+
+                            <span>
+                                Stock actual
+                            </span>
+
+                            <strong>
+                                {{ producto.stock_actual }}
+                            </strong>
+
+                        </div>
+
+
+                        <div>
+
+                            <span>
+                                Stock mínimo
+                            </span>
+
+                            <strong>
+                                {{ producto.stock_minimo }}
+                            </strong>
+
+                        </div>
+
+                    </div>
+
+
+                    {% if producto.stock_actual <= producto.stock_minimo %}
+
+                        <div class="inventory-warning">
+
+                            <span></span>
+
+                            {% if producto.stock_actual == 0 %}
+                                Producto agotado.
+                            {% else %}
+                                El producto alcanzó su nivel mínimo.
+                            {% endif %}
+
+                        </div>
+
+                    {% endif %}
+
+                </div>
+
+            </a>
+
+        {% endfor %}
+
+    </div>
+
+{% else %}
+
+    <div class="products-empty">
+
+        <strong>
+            No encontramos productos
+        </strong>
+
+        <span>
+            Intenta buscar con otro nombre o código.
+        </span>
+
+    </div>
+
+{% endif %}
+
+{% endblock %}

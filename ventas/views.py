@@ -1,12 +1,12 @@
 import json
-
 from django.db import transaction
 from django.db.models import Q
 from django.http import JsonResponse
 from django.shortcuts import render
-
 from productos.models import Producto
 from .models import Venta, DetalleVenta
+from django.db.models import Sum
+from django.utils import timezone
 
 
 def pos(request):
@@ -208,3 +208,32 @@ def confirmar_venta(request):
         "total": venta.total,
         "mensaje": "Venta registrada correctamente.",
     })
+
+
+def corte_diario(request):
+    hoy = timezone.localdate()
+
+    ventas = Venta.objects.filter(
+        estado=Venta.Estado.COMPLETADA,
+        creada_en__date=hoy,
+    ).order_by("-creada_en")
+
+    cantidad_ventas = ventas.count()
+
+    total_vendido = (
+        ventas.aggregate(total=Sum("total"))["total"]
+        or 0
+    )
+
+    ultimas_ventas = ventas[:10]
+
+    return render(
+        request,
+        "ventas/corte_diario.html",
+        {
+            "hoy": hoy,
+            "cantidad_ventas": cantidad_ventas,
+            "total_vendido": total_vendido,
+            "ultimas_ventas": ultimas_ventas,
+        },
+    )
