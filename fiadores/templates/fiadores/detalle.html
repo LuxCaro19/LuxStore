@@ -1,0 +1,551 @@
+{% extends "base.html" %}
+
+{% block title %}
+{{ fiador.nombre }} | LuxStore
+{% endblock %}
+
+{% block content %}
+
+<div
+    class="guarantor-account"
+    x-data="{
+        saldo: {{ fiador.saldo }},
+        mostrarAbono: false,
+        guardando: false,
+        error: '',
+        movimientosNuevos: [],
+
+        moneda(valor) {
+            return '$' + new Intl.NumberFormat(
+                'es-CL'
+            ).format(valor);
+        },
+
+        abrirAbono() {
+
+            if (this.saldo <= 0) {
+                return;
+            }
+
+            this.error = '';
+            this.mostrarAbono = true;
+
+            this.$nextTick(() => {
+                this.$refs.montoAbono.focus();
+            });
+        },
+
+        cerrarAbono() {
+
+            if (this.guardando) {
+                return;
+            }
+
+            this.mostrarAbono = false;
+            this.error = '';
+
+            this.$refs.abonoForm.reset();
+        },
+
+        async registrarAbono() {
+
+            if (this.guardando) {
+                return;
+            }
+
+            this.guardando = true;
+            this.error = '';
+
+            const datos = new FormData(
+                this.$refs.abonoForm
+            );
+
+            try {
+
+                const respuesta = await fetch(
+                    '{% url "fiadores:registrar_abono" fiador.pk %}',
+                    {
+                        method: 'POST',
+                        body: datos,
+                        credentials: 'same-origin',
+                        headers: {
+                            'X-Requested-With': 'XMLHttpRequest'
+                        }
+                    }
+                );
+
+                const resultado =
+                    await respuesta.json();
+
+
+                if (!respuesta.ok) {
+
+                    this.error =
+                        resultado.mensaje
+                        || 'No fue posible registrar el abono.';
+
+                    return;
+                }
+
+
+                this.saldo = resultado.saldo;
+
+                this.movimientosNuevos.unshift(
+                    resultado.movimiento
+                );
+
+                this.mostrarAbono = false;
+
+                this.$refs.abonoForm.reset();
+
+
+            } catch (error) {
+
+                this.error =
+                    'No fue posible conectar con el servidor.';
+
+            } finally {
+
+                this.guardando = false;
+
+            }
+        }
+    }"
+>
+
+
+    <div class="product-page-top">
+
+        <a
+            href="{% url 'fiadores:lista' %}"
+            class="back-link"
+        >
+            ← Volver a fiadores
+        </a>
+
+    </div>
+
+
+    <!-- CABECERA -->
+    <div class="guarantor-header">
+
+        <div class="guarantor-identity">
+
+            <div class="fiador-avatar fiador-avatar-large">
+                {{ fiador.nombre|first|upper }}
+            </div>
+
+
+            <div>
+
+                <span class="product-eyebrow">
+                    Cuenta fiada
+                </span>
+
+                <h1>
+                    {{ fiador.nombre }}
+                </h1>
+
+                {% if fiador.activo %}
+
+                    <span class="status-badge status-active">
+                        Activo
+                    </span>
+
+                {% else %}
+
+                    <span class="status-badge status-inactive">
+                        Inactivo
+                    </span>
+
+                {% endif %}
+
+            </div>
+
+        </div>
+
+
+        <button
+            type="button"
+            class="btn btn-lux"
+            @click="abrirAbono()"
+            :disabled="saldo <= 0"
+        >
+            + Registrar abono
+        </button>
+
+    </div>
+
+
+    <!-- SALDO -->
+    <div class="guarantor-balance">
+
+        <span>
+            Deuda actual
+        </span>
+
+        <strong
+            x-text="moneda(saldo)"
+        ></strong>
+
+        <small x-show="saldo > 0">
+            Saldo pendiente
+        </small>
+
+        <small
+            x-show="saldo === 0"
+            x-cloak
+        >
+            Cuenta al día
+        </small>
+
+    </div>
+
+
+    <!-- MOVIMIENTOS -->
+    <section class="guarantor-movements">
+
+        <div class="guarantor-movements-header">
+
+            <div>
+
+                <h2>
+                    Movimientos
+                </h2>
+
+                <p>
+                    Historial de cargos y abonos de esta cuenta.
+                </p>
+
+            </div>
+
+        </div>
+
+
+        <!-- ABONOS CREADOS SIN RECARGAR -->
+        <template
+            x-for="movimiento in movimientosNuevos"
+            :key="'nuevo-' + movimiento.id"
+        >
+
+            <div class="guarantor-movement-row">
+
+                <div class="movement-icon movement-payment">
+                    ↓
+                </div>
+
+
+                <div class="movement-main">
+
+                    <strong>
+                        Abono
+                    </strong>
+
+                    <span
+                        x-text="movimiento.fecha"
+                    ></span>
+
+                </div>
+
+
+                <div
+                    class="movement-note"
+                    x-text="
+                        movimiento.nota
+                        || 'Abono a cuenta'
+                    "
+                ></div>
+
+
+                <strong
+                    class="movement-amount movement-amount-payment"
+                    x-text="'-' + moneda(movimiento.monto)"
+                ></strong>
+
+            </div>
+
+        </template>
+
+
+        {% for movimiento in movimientos %}
+
+            <div class="guarantor-movement-row">
+
+                {% if movimiento.tipo == "CARGO" %}
+
+                    <div class="movement-icon movement-charge">
+                        ↑
+                    </div>
+
+                {% else %}
+
+                    <div class="movement-icon movement-payment">
+                        ↓
+                    </div>
+
+                {% endif %}
+
+
+                <div class="movement-main">
+
+                    <strong>
+
+                        {% if movimiento.tipo == "CARGO" %}
+
+                            {% if movimiento.venta %}
+                                Venta #{{ movimiento.venta.id }}
+                            {% else %}
+                                Cargo
+                            {% endif %}
+
+                        {% else %}
+
+                            Abono
+
+                        {% endif %}
+
+                    </strong>
+
+
+                    <span>
+                        {{ movimiento.creado_en|date:"d/m/Y H:i" }}
+                    </span>
+
+                </div>
+
+
+                <div class="movement-note">
+
+                    {% if movimiento.nota %}
+
+                        {{ movimiento.nota }}
+
+                    {% elif movimiento.tipo == "CARGO" %}
+
+                        Venta fiada
+
+                    {% else %}
+
+                        Abono a cuenta
+
+                    {% endif %}
+
+                </div>
+
+
+                <strong
+                    class="
+                        movement-amount
+                        {% if movimiento.tipo == 'ABONO' %}
+                            movement-amount-payment
+                        {% endif %}
+                    "
+                >
+
+                    {% if movimiento.tipo == "ABONO" %}
+                        -
+                    {% else %}
+                        +
+                    {% endif %}
+
+                    ${{ movimiento.monto }}
+
+                </strong>
+
+            </div>
+
+        {% empty %}
+
+            <div class="guarantor-empty">
+
+                <strong>
+                    Sin movimientos todavía
+                </strong>
+
+                <span>
+                    Las ventas fiadas y los abonos aparecerán aquí.
+                </span>
+
+            </div>
+
+        {% endfor %}
+
+    </section>
+
+
+
+    <!-- MODAL ABONO -->
+    <div
+        class="lux-confirm-backdrop"
+        x-show="mostrarAbono"
+        x-transition.opacity
+        x-cloak
+        @click.self="cerrarAbono()"
+        @keydown.escape.window="cerrarAbono()"
+    >
+
+        <div
+            class="lux-confirm-card"
+            x-show="mostrarAbono"
+            x-transition
+        >
+
+            <form
+                x-ref="abonoForm"
+                @submit.prevent="registrarAbono()"
+            >
+
+                {% csrf_token %}
+
+
+                <div class="lux-confirm-header">
+
+                    <div>
+
+                        <span class="lux-confirm-eyebrow">
+                            Cuenta fiada
+                        </span>
+
+                        <h2>
+                            Registrar abono
+                        </h2>
+
+                        <p>
+                            {{ fiador.nombre }}
+                        </p>
+
+                    </div>
+
+
+                    <button
+                        type="button"
+                        class="lux-confirm-close"
+                        @click="cerrarAbono()"
+                    >
+                        ×
+                    </button>
+
+                </div>
+
+
+                <div class="guarantor-payment-body">
+
+                    <div class="guarantor-current-debt">
+
+                        <span>
+                            Deuda actual
+                        </span>
+
+                        <strong
+                            x-text="moneda(saldo)"
+                        ></strong>
+
+                    </div>
+
+
+                    <div class="product-field">
+
+                        <label
+                            for="monto-abono"
+                            class="lux-label"
+                        >
+                            Monto del abono
+                        </label>
+
+                        <div class="input-group lux-input-group">
+
+                            <span class="input-group-text lux-input-prefix">
+                                $
+                            </span>
+
+                            <input
+                                id="monto-abono"
+                                name="monto"
+                                type="number"
+                                min="1"
+                                :max="saldo"
+                                x-ref="montoAbono"
+                                class="form-control lux-input"
+                                placeholder="0"
+                                required
+                            >
+
+                        </div>
+
+                    </div>
+
+
+                    <div class="product-field">
+
+                        <label
+                            for="nota-abono"
+                            class="lux-label"
+                        >
+                            Nota
+                        </label>
+
+                        <input
+                            id="nota-abono"
+                            name="nota"
+                            type="text"
+                            maxlength="250"
+                            class="form-control lux-input"
+                            placeholder="Opcional"
+                            autocomplete="off"
+                        >
+
+                    </div>
+
+
+                    <div
+                        class="lux-confirm-error"
+                        x-show="error"
+                        x-text="error"
+                        x-cloak
+                    ></div>
+
+                </div>
+
+
+                <div class="lux-confirm-actions">
+
+                    <button
+                        type="button"
+                        class="btn-cancel"
+                        @click="cerrarAbono()"
+                        :disabled="guardando"
+                    >
+                        Cancelar
+                    </button>
+
+
+                    <button
+                        type="submit"
+                        class="btn btn-lux lux-confirm-button"
+                        :disabled="guardando"
+                    >
+
+                        <span x-show="!guardando">
+                            Registrar abono
+                        </span>
+
+                        <span
+                            x-show="guardando"
+                            style="display: none;"
+                        >
+                            Guardando...
+                        </span>
+
+                    </button>
+
+                </div>
+
+            </form>
+
+        </div>
+
+    </div>
+
+</div>
+
+{% endblock %}

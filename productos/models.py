@@ -14,6 +14,19 @@ class Producto(models.Model):
         verbose_name="Nombre",
     )
 
+    precio_compra = models.PositiveIntegerField(
+        null=True,
+        blank=True,
+        verbose_name="Precio de compra",
+    )
+
+    porcentaje_ganancia = models.DecimalField(
+        max_digits=5,
+        decimal_places=2,
+        default=0,
+        verbose_name="Porcentaje de ganancia",
+    )
+    
     precio = models.PositiveIntegerField(
         verbose_name="Precio",
     )

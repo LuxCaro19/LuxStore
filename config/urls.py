@@ -25,5 +25,9 @@ urlpatterns = [
         include("ventas.urls"),
     ),
 
+    path(
+        "fiadores/",
+        include("fiadores.urls"),
+    ),
     
 ]

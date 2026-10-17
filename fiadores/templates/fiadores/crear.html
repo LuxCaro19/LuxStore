@@ -1,0 +1,131 @@
+{% extends "base.html" %}
+
+{% block title %}
+Nuevo fiador | LuxStore
+{% endblock %}
+
+{% block content %}
+
+<div class="product-page">
+
+    <div class="product-page-top">
+
+        <a
+            href="{% url 'fiadores:lista' %}"
+            class="back-link"
+        >
+            ← Volver a fiadores
+        </a>
+
+    </div>
+
+
+    <form method="post">
+
+        {% csrf_token %}
+
+
+        <div class="fiador-sheet">
+
+            <div class="fiador-sheet-header">
+
+                <div class="fiador-avatar fiador-avatar-large">
+                    F
+                </div>
+
+
+                <div>
+
+                    <span class="product-eyebrow">
+                        Nuevo fiador
+                    </span>
+
+                    <h1>
+                        Crear cuenta
+                    </h1>
+
+                    <p>
+                        Registra a una persona para asociar ventas fiadas.
+                    </p>
+
+                </div>
+
+            </div>
+
+
+            <div class="fiador-sheet-body">
+
+                <div class="product-field">
+
+                    <label
+                        for="{{ form.nombre.id_for_label }}"
+                        class="lux-label"
+                    >
+                        Nombre
+                    </label>
+
+                    {{ form.nombre }}
+
+                    {% for error in form.nombre.errors %}
+
+                        <div class="lux-field-error">
+                            {{ error }}
+                        </div>
+
+                    {% endfor %}
+
+                </div>
+
+
+                <div class="fiador-active">
+
+                    <div>
+
+                        <strong>
+                            Activo
+                        </strong>
+
+                        <span>
+                            Disponible para ventas fiadas
+                        </span>
+
+                    </div>
+
+
+                    <div class="form-check form-switch m-0">
+
+                        {{ form.activo }}
+
+                    </div>
+
+                </div>
+
+            </div>
+
+
+            <div class="product-sheet-actions">
+
+                <a
+                    href="{% url 'fiadores:lista' %}"
+                    class="btn-cancel"
+                >
+                    Cancelar
+                </a>
+
+
+                <button
+                    type="submit"
+                    class="btn btn-lux product-save"
+                >
+                    Guardar fiador
+                </button>
+
+            </div>
+
+        </div>
+
+    </form>
+
+</div>
+
+{% endblock %}

@@ -1,0 +1,171 @@
+{% extends "base.html" %}
+
+{% block title %}
+Fiadores | LuxStore
+{% endblock %}
+
+{% block content %}
+
+<div class="page-header">
+
+    <div>
+
+        <h1 class="page-title">
+            Fiadores
+        </h1>
+
+        <p class="page-subtitle">
+            Administra las cuentas fiadas de tus clientes.
+        </p>
+
+    </div>
+
+
+    <a
+        href="{% url 'fiadores:crear' %}"
+        class="btn btn-lux"
+    >
+        + Nuevo fiador
+    </a>
+
+</div>
+
+
+<div class="fiadores-search">
+
+    <input
+        type="search"
+        id="fiador-search"
+        class="search-box"
+        placeholder="Buscar fiador..."
+        autocomplete="off"
+    >
+
+</div>
+
+
+{% if fiadores %}
+
+    <div
+        class="fiadores-grid"
+        id="fiadores-grid"
+    >
+
+        {% for fiador in fiadores %}
+
+            <a
+                href="{% url 'fiadores:detalle' fiador.pk %}"
+                class="fiador-card-link"
+                data-fiador-card
+                data-name="{{ fiador.nombre|lower }}"
+            >
+
+                <div
+                    class="fiador-card"
+                    data-fiador-card
+                    data-name="{{ fiador.nombre|lower }}"
+                >
+
+                    <div class="fiador-card-top">
+
+                        <div class="fiador-avatar">
+
+                            {{ fiador.nombre|first|upper }}
+
+                        </div>
+
+
+                        {% if fiador.activo %}
+
+                            <span class="status-badge status-active">
+                                Activo
+                            </span>
+
+                        {% else %}
+
+                            <span class="status-badge status-inactive">
+                                Inactivo
+                            </span>
+
+                        {% endif %}
+
+                    </div>
+
+
+                    <div class="fiador-card-body">
+
+                        <h2>
+                            {{ fiador.nombre }}
+                        </h2>
+
+
+                        <div class="fiador-debt">
+
+                            <span>
+                                Deuda actual
+                            </span>
+
+                            <strong>
+                                ${{ fiador.saldo }}
+                            </strong>
+
+                        </div>
+
+                    </div>
+
+
+                    <div class="fiador-card-footer">
+
+                        <div class="product-card-action">
+
+                            Ver cuenta
+
+                            <span>
+                                →
+                            </span>
+
+                        </div>
+
+                    </div>
+
+                </div>
+
+            </a>
+        {% endfor %}
+
+    </div>
+
+
+    <div
+        class="products-live-empty"
+        id="fiadores-live-empty"
+        hidden
+    >
+
+        <strong>
+            No encontramos fiadores
+        </strong>
+
+        <span>
+            Intenta buscar con otro nombre.
+        </span>
+
+    </div>
+
+{% else %}
+
+    <div class="products-empty">
+
+        <strong>
+            Todavía no hay fiadores
+        </strong>
+
+        <span>
+            Crea uno para comenzar a registrar ventas fiadas.
+        </span>
+
+    </div>
+
+{% endif %}
+
+{% endblock %}

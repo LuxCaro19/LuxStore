@@ -24,6 +24,11 @@ Venta | LuxStore
         ventaRealizada: false,
         mensajeCobro: '',
         mostrarConfirmacion: false,
+        esFiado: false,
+        fiadorId: '',
+        fiadorNombre: '',
+        fiadorDeuda: 0,
+        selectorFiadorAbierto: false,
 
         abrirConfirmacion() {
 
@@ -32,6 +37,9 @@ Venta | LuxStore
             }
 
             this.mensajeCobro = '';
+            this.mostrarConfirmacion = true;
+            this.fiadorId = '';
+
             this.mostrarConfirmacion = true;
         },
 
@@ -224,6 +232,14 @@ Venta | LuxStore
 
             try {
 
+                if (this.esFiado && !this.fiadorId) {
+
+                    this.mensajeCobro =
+                        'Selecciona un fiador para continuar.';
+
+                    return;
+                }
+
                 const respuesta = await fetch(
                     `{% url 'ventas:confirmar_venta' %}`,
                     {
@@ -238,7 +254,9 @@ Venta | LuxStore
                         },
 
                         body: JSON.stringify({
-                            items: items
+                            items: items,
+                            fiado: this.esFiado,
+                            fiador_id: this.fiadorId || null
                         })
                     }
                 );
@@ -823,7 +841,140 @@ Venta | LuxStore
 
             </div>
 
+            <div class="lux-fiado-option">
 
+                <div class="lux-fiado-card">
+
+                    <div class="lux-fiado-card-text">
+                        <strong>Fiar esta venta</strong>
+                        <span>Asocia esta venta a un fiador</span>
+                    </div>
+
+                    <div class="form-check form-switch m-0">
+                        <input
+                            id="fiado-toggle"
+                            type="checkbox"
+                            class="form-check-input lux-switch-input"
+                            x-model="esFiado"
+                        >
+                    </div>
+
+                </div>
+
+
+                <div
+                    class="lux-fiado-select"
+                    x-show="esFiado"
+                    x-transition
+                    x-cloak
+                >
+
+                    <label
+                        for="fiador-select"
+                        class="lux-label"
+                    >
+                        Fiador
+                    </label>
+
+                    <div class="lux-select-wrap">
+
+                        <div
+                            class="lux-fiador-dropdown"
+                            @click.outside="selectorFiadorAbierto = false"
+                        >
+
+                            <button
+                                type="button"
+                                class="lux-fiador-dropdown-trigger"
+                                @click="selectorFiadorAbierto = !selectorFiadorAbierto"
+                            >
+
+                                <div class="lux-fiador-selected">
+
+                                    <span
+                                        x-show="!fiadorId"
+                                    >
+                                        Seleccionar fiador
+                                    </span>
+
+                                    <div
+                                        x-show="fiadorId"
+                                        x-cloak
+                                    >
+                                        <strong x-text="fiadorNombre"></strong>
+
+                                        <small>
+                                            Debe
+                                            <span x-text="moneda(fiadorDeuda)"></span>
+                                        </small>
+                                    </div>
+
+                                </div>
+
+                                <span
+                                    class="lux-fiador-chevron"
+                                    :class="{ 'open': selectorFiadorAbierto }"
+                                >
+                                    ⌄
+                                </span>
+
+                            </button>
+
+
+                            <div
+                                class="lux-fiador-dropdown-menu"
+                                x-show="selectorFiadorAbierto"
+                                x-transition
+                                x-cloak
+                            >
+
+                                {% for fiador in fiadores %}
+
+                                    <button
+                                        type="button"
+                                        class="lux-fiador-option"
+                                        @click="
+                                            fiadorId = '{{ fiador.id }}';
+                                            fiadorNombre = '{{ fiador.nombre|escapejs }}';
+                                            fiadorDeuda = {{ fiador.saldo }};
+                                            selectorFiadorAbierto = false;
+                                        "
+                                    >
+
+                                        <div>
+                                            <strong>
+                                                {{ fiador.nombre }}
+                                            </strong>
+
+                                            <span>
+                                                Deuda actual
+                                            </span>
+                                        </div>
+
+                                        <strong
+                                            class="lux-fiador-option-debt"
+                                            x-text="moneda({{ fiador.saldo }})"
+                                        ></strong>
+
+                                    </button>
+
+                                {% endfor %}
+
+                            </div>
+
+                        </div>
+
+                    </div>
+
+                    <span class="lux-help">
+                        El total de esta venta quedará registrado en la cuenta del fiador.
+                    </span>
+
+                </div>
+
+            </div>
+            
+            
             <div
                 class="lux-confirm-error"
                 x-show="mensajeCobro && !ventaRealizada"

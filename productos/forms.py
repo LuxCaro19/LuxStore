@@ -10,6 +10,8 @@ class ProductoForm(forms.ModelForm):
         fields = [
             "nombre",
             "codigo_barras",
+            "precio_compra",
+            "porcentaje_ganancia",
             "precio",
             "stock_actual",
             "stock_minimo",
@@ -30,6 +32,21 @@ class ProductoForm(forms.ModelForm):
                     "class": "form-control lux-input",
                     "placeholder": "Escanea o ingresa el código",
                     "autocomplete": "off",
+                }
+            ),
+            "precio_compra": forms.NumberInput(
+                attrs={
+                    "class": "form-control lux-input",
+                    "placeholder": "0",
+                    "min": "0",
+                }
+            ),
+            "porcentaje_ganancia": forms.NumberInput(
+                attrs={
+                    "class": "form-control lux-input",
+                    "placeholder": "0",
+                    "min": "0",
+                    "step": "0.01",
                 }
             ),
             "precio": forms.NumberInput(

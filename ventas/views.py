@@ -7,10 +7,22 @@ from productos.models import Producto
 from .models import Venta, DetalleVenta
 from django.db.models import Sum
 from django.utils import timezone
+from fiadores.models import Fiador
+from fiadores.models import Fiador, MovimientoFiado
 
 
 def pos(request):
-    return render(request, "ventas/pos.html")
+    fiadores = Fiador.objects.filter(
+        activo=True
+    ).order_by("nombre")
+
+    return render(
+        request,
+        "ventas/pos.html",
+        {
+            "fiadores": fiadores,
+        },
+    )
 
 
 def buscar_productos(request):
@@ -77,6 +89,14 @@ def confirmar_venta(request):
 
     items = datos.get("items", [])
 
+    es_fiado = bool(
+    datos.get("fiado", False)
+    )
+
+    fiador_id = datos.get(
+        "fiador_id"
+    )
+
     if not items:
         return JsonResponse(
             {
@@ -112,6 +132,37 @@ def confirmar_venta(request):
         )
 
     try:
+
+        fiador = None
+
+        if es_fiado:
+
+            if not fiador_id:
+                return JsonResponse(
+                    {
+                        "ok": False,
+                        "mensaje": "Debes seleccionar un fiador.",
+                    },
+                    status=400,
+                )
+
+            try:
+
+                fiador = Fiador.objects.get(
+                    pk=fiador_id,
+                    activo=True,
+                )
+
+            except Fiador.DoesNotExist:
+
+                return JsonResponse(
+                    {
+                        "ok": False,
+                        "mensaje": "El fiador seleccionado no es válido.",
+                    },
+                    status=400,
+                )
+
         with transaction.atomic():
 
             productos = Producto.objects.select_for_update().filter(
@@ -191,6 +242,16 @@ def confirmar_venta(request):
                         "stock_actual",
                         "actualizado_en",
                     ]
+                )
+
+            if es_fiado:
+
+                MovimientoFiado.objects.create(
+                    fiador=fiador,
+                    venta=venta,
+                    tipo=MovimientoFiado.Tipo.CARGO,
+                    monto=venta.total,
+                    nota="Venta fiada",
                 )
 
     except Exception:
