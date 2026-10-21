@@ -1,3 +1,5 @@
+import json
+
 from django.db import transaction
 from django.db.models import Q
 from django.http import JsonResponse
@@ -198,4 +200,64 @@ def registrar_abono(request, pk):
                 "fecha": fecha,
             },
         }
+    )
+
+
+def crear_fiador_rapido(request):
+    """
+    Crea un fiador desde el modal de cobro del POS mediante fetch (JSON).
+    """
+    if request.method != "POST":
+        return JsonResponse(
+            {"ok": False, "mensaje": "Método no permitido."},
+            status=405,
+        )
+
+    try:
+        datos = json.loads(request.body)
+    except json.JSONDecodeError:
+        return JsonResponse(
+            {"ok": False, "mensaje": "Datos JSON no válidos."},
+            status=400,
+        )
+
+    nombre = str(datos.get("nombre", "")).strip()
+
+    if not nombre:
+        return JsonResponse(
+            {"ok": False, "mensaje": "Ingresa el nombre del fiador."},
+            status=400,
+        )
+
+    # Validar duplicados exactos (case-insensitive)
+    existente = Fiador.objects.filter(nombre__iexact=nombre).first()
+    if existente:
+        return JsonResponse(
+            {
+                "ok": False,
+                "mensaje": f"Ya existe un fiador con el nombre '{existente.nombre}'.",
+            },
+            status=400,
+        )
+
+    form = FiadorForm(data={"nombre": nombre, "activo": True})
+    if not form.is_valid():
+        return JsonResponse(
+            {"ok": False, "mensaje": "Nombre no válido (máximo 150 caracteres)."},
+            status=400,
+        )
+
+    fiador = form.save()
+
+    return JsonResponse(
+        {
+            "ok": True,
+            "mensaje": "Fiador creado exitosamente.",
+            "fiador": {
+                "id": fiador.id,
+                "nombre": fiador.nombre,
+                "saldo": 0,
+            },
+        },
+        status=201,
     )

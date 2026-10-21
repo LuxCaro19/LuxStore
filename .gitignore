@@ -24,3 +24,6 @@ Desktop.ini
 
 # Logs
 *.log
+
+#context
+PROJECT_CONTEXT.md

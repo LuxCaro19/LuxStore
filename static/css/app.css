@@ -3723,7 +3723,7 @@ body {
 }
 
 .lux-fiado-option {
-    margin: 16px 26px 0;
+    margin: 16px 26px 20px;
 }
 
 .lux-fiado-toggle {
@@ -3757,7 +3757,7 @@ body {
 }
 
 .lux-fiado-option {
-    margin: 16px 26px 0;
+    margin: 16px 26px 20px;
 }
 
 .lux-fiado-card {
@@ -4025,4 +4025,97 @@ body {
     color: var(--app-primary);
 
     white-space: nowrap;
+}
+
+/* Opción activa seleccionada en el menú */
+.lux-fiador-option.selected {
+    background: #edf3f6;
+}
+
+.lux-fiador-option.selected strong {
+    color: var(--app-primary);
+}
+
+/* Opción para crear fiador al final del dropdown */
+.lux-fiador-create-trigger {
+    width: 100%;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-top: 4px;
+    padding: 11px 12px;
+    border: 0;
+    border-top: 1px solid var(--app-border);
+    border-radius: 0 0 8px 8px;
+    background: #ffffff;
+    color: var(--app-primary);
+    font-size: 11px;
+    font-weight: 600;
+    text-align: left;
+    cursor: pointer;
+    position: sticky;
+    bottom: -5px;
+    transition: background-color 0.15s ease;
+}
+
+.lux-fiador-create-trigger:hover {
+    background: #f1f6f8;
+}
+
+.lux-fiador-create-trigger span {
+    width: 20px;
+    height: 20px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 50%;
+    background: #e3edf2;
+    color: var(--app-primary);
+    font-size: 14px;
+    font-weight: bold;
+    line-height: 1;
+}
+
+/* Formulario inline para nuevo fiador: directo y limpio (sin tarjeta extra) */
+.lux-fiador-inline-form {
+    margin-top: 6px;
+    padding: 0;
+    background: transparent;
+    border: none;
+    box-shadow: none;
+}
+
+.lux-fiador-inline-form .lux-input {
+    background: #ffffff;
+    font-size: 14px;
+    border-radius: 9px;
+}
+
+.lux-fiador-inline-form .lux-input:focus {
+    background: #ffffff;
+}
+
+.lux-fiador-create-actions {
+    display: flex;
+    align-items: center;
+    justify-content: flex-end;
+    gap: 8px;
+    margin-top: 10px;
+}
+
+.lux-fiador-create-actions .btn-cancel,
+.lux-fiador-create-actions .btn-lux {
+    padding: 7px 14px;
+    font-size: 12px;
+    border-radius: 8px;
+}
+
+.lux-fiador-create-error {
+    margin-top: 8px;
+    padding: 7px 10px;
+    border-radius: 6px;
+    background: #fbf0f0;
+    color: #964242;
+    border: 1px solid #f2d4d4;
+    font-size: 11px;
 }

@@ -9,6 +9,7 @@ app_name = "fiadores"
 urlpatterns = [
     path("", views.lista_fiadores, name="lista"),
     path("nuevo/", views.crear_fiador, name="crear"),
+    path("crear-rapido/", views.crear_fiador_rapido, name="crear_rapido"),
 
     path(
         "<int:pk>/",

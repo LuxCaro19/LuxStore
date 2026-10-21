@@ -16,11 +16,21 @@ def pos(request):
         activo=True
     ).order_by("nombre")
 
+    fiadores_data = [
+        {
+            "id": fiador.id,
+            "nombre": fiador.nombre,
+            "saldo": fiador.saldo,
+        }
+        for fiador in fiadores
+    ]
+
     return render(
         request,
         "ventas/pos.html",
         {
             "fiadores": fiadores,
+            "fiadores_data": fiadores_data,
         },
     )
 

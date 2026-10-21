@@ -11,6 +11,8 @@ Venta | LuxStore
     {% csrf_token %}
 </form>
 
+{{ fiadores_data|json_script:"fiadores-data" }}
+
 
 <div
     x-data="{
@@ -29,6 +31,22 @@ Venta | LuxStore
         fiadorNombre: '',
         fiadorDeuda: 0,
         selectorFiadorAbierto: false,
+        fiadores: [],
+        creandoFiador: false,
+        nuevoFiadorNombre: '',
+        guardandoFiador: false,
+        errorFiador: '',
+
+        init() {
+            const el = document.getElementById('fiadores-data');
+            if (el && el.textContent) {
+                try {
+                    this.fiadores = JSON.parse(el.textContent);
+                } catch (e) {
+                    this.fiadores = [];
+                }
+            }
+        },
 
         abrirConfirmacion() {
 
@@ -37,10 +55,74 @@ Venta | LuxStore
             }
 
             this.mensajeCobro = '';
-            this.mostrarConfirmacion = true;
+            this.esFiado = false;
             this.fiadorId = '';
+            this.fiadorNombre = '';
+            this.fiadorDeuda = 0;
+            this.selectorFiadorAbierto = false;
+            this.cancelarCrearFiador();
 
             this.mostrarConfirmacion = true;
+        },
+
+        seleccionarFiador(f) {
+            this.fiadorId = String(f.id);
+            this.fiadorNombre = f.nombre;
+            this.fiadorDeuda = f.saldo;
+            this.selectorFiadorAbierto = false;
+            this.cancelarCrearFiador();
+        },
+
+        abrirCrearFiador() {
+            this.selectorFiadorAbierto = false;
+            this.nuevoFiadorNombre = '';
+            this.errorFiador = '';
+            this.creandoFiador = true;
+            this.$nextTick(() => {
+                if (this.$refs.nuevoFiador) this.$refs.nuevoFiador.focus();
+            });
+        },
+
+        cancelarCrearFiador() {
+            this.creandoFiador = false;
+            this.nuevoFiadorNombre = '';
+            this.errorFiador = '';
+        },
+
+        async guardarFiador() {
+            const nombre = this.nuevoFiadorNombre.trim();
+            if (!nombre || this.guardandoFiador) return;
+
+            this.guardandoFiador = true;
+            this.errorFiador = '';
+            const csrfToken = document.querySelector('[name=csrfmiddlewaretoken]').value;
+
+            try {
+                const res = await fetch(`{% url 'fiadores:crear_rapido' %}`, {
+                    method: 'POST',
+                    credentials: 'same-origin',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'X-CSRFToken': csrfToken,
+                        'X-Requested-With': 'XMLHttpRequest'
+                    },
+                    body: JSON.stringify({ nombre: nombre })
+                });
+
+                const data = await res.json();
+                if (!res.ok) {
+                    this.errorFiador = data.mensaje || 'Error al crear fiador.';
+                    return;
+                }
+
+                this.fiadores.push(data.fiador);
+                this.fiadores.sort((a, b) => a.nombre.localeCompare(b.nombre, 'es'));
+                this.seleccionarFiador(data.fiador);
+            } catch (err) {
+                this.errorFiador = 'No fue posible conectar con el servidor.';
+            } finally {
+                this.guardandoFiador = false;
+            }
         },
 
         cerrarConfirmacion() {
@@ -270,6 +352,15 @@ Venta | LuxStore
                         || 'No fue posible registrar la venta.';
 
                     return;
+                }
+
+                // Si fue fiada, actualizamos el saldo del fiador inmediatamente en la lista
+                if (this.esFiado && this.fiadorId) {
+                    const fiadorActual = this.fiadores.find(f => String(f.id) === String(this.fiadorId));
+                    if (fiadorActual) {
+                        fiadorActual.saldo = (fiadorActual.saldo || 0) + (datos.total || 0);
+                        this.fiadorDeuda = fiadorActual.saldo;
+                    }
                 }
 
                 this.venta = [];
@@ -876,7 +967,8 @@ Venta | LuxStore
                         Fiador
                     </label>
 
-                    <div class="lux-select-wrap">
+                    <!-- Si no está creando, muestra el selector normal -->
+                    <div class="lux-select-wrap" x-show="!creandoFiador">
 
                         <div
                             class="lux-fiador-dropdown"
@@ -928,42 +1020,84 @@ Venta | LuxStore
                                 x-cloak
                             >
 
-                                {% for fiador in fiadores %}
-
+                                <template x-for="f in fiadores" :key="f.id">
                                     <button
                                         type="button"
                                         class="lux-fiador-option"
-                                        @click="
-                                            fiadorId = '{{ fiador.id }}';
-                                            fiadorNombre = '{{ fiador.nombre|escapejs }}';
-                                            fiadorDeuda = {{ fiador.saldo }};
-                                            selectorFiadorAbierto = false;
-                                        "
+                                        :class="{ 'selected': fiadorId === String(f.id) }"
+                                        @click="seleccionarFiador(f)"
                                     >
-
                                         <div>
-                                            <strong>
-                                                {{ fiador.nombre }}
-                                            </strong>
-
-                                            <span>
-                                                Deuda actual
-                                            </span>
+                                            <strong x-text="f.nombre"></strong>
+                                            <span>Deuda actual</span>
                                         </div>
-
                                         <strong
                                             class="lux-fiador-option-debt"
-                                            x-text="moneda({{ fiador.saldo }})"
+                                            x-text="moneda(f.saldo)"
                                         ></strong>
-
                                     </button>
+                                </template>
 
-                                {% endfor %}
+                                <!-- Botón al final para abrir creación de fiador -->
+                                <button
+                                    type="button"
+                                    class="lux-fiador-create-trigger"
+                                    @click="abrirCrearFiador()"
+                                >
+                                    <span>+</span>
+                                    Crear fiador
+                                </button>
 
                             </div>
 
                         </div>
 
+                    </div>
+
+                    <!-- Si está creando, reemplaza el selector directamente (sin doble caja) -->
+                    <div
+                        class="lux-fiador-inline-form"
+                        x-show="creandoFiador"
+                        x-cloak
+                    >
+                        <input
+                            type="text"
+                            x-ref="nuevoFiador"
+                            x-model="nuevoFiadorNombre"
+                            class="form-control lux-input"
+                            placeholder="Nombre del nuevo fiador..."
+                            maxlength="150"
+                            autocomplete="off"
+                            :disabled="guardandoFiador"
+                            @keydown.enter.prevent="guardarFiador()"
+                        >
+
+                        <div
+                            class="lux-fiador-create-error"
+                            x-show="errorFiador"
+                            x-text="errorFiador"
+                            x-cloak
+                        ></div>
+
+                        <div class="lux-fiador-create-actions">
+                            <button
+                                type="button"
+                                class="btn-cancel"
+                                @click="cancelarCrearFiador()"
+                                :disabled="guardandoFiador"
+                            >
+                                Cancelar
+                            </button>
+                            <button
+                                type="button"
+                                class="btn btn-lux"
+                                @click="guardarFiador()"
+                                :disabled="guardandoFiador || !nuevoFiadorNombre.trim()"
+                            >
+                                <span x-show="!guardandoFiador">Guardar fiador</span>
+                                <span x-show="guardandoFiador" x-cloak>Guardando...</span>
+                            </button>
+                        </div>
                     </div>
 
                     <span class="lux-help">
