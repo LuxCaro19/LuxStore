@@ -4225,3 +4225,144 @@ body {
     font-size: 12px;
     color: #9e3838;
 }
+
+/* =========================================================
+   CORTE DIARIO: DESGLOSE POR MEDIOS DE PAGO Y BADGES
+   ========================================================= */
+
+.daily-summary-grid {
+    grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)) !important;
+}
+
+.daily-summary-fiado {
+    border-left: 3px solid #df9441;
+}
+
+.daily-sale-payment {
+    display: flex;
+    align-items: center;
+}
+
+.badge-payment {
+    padding: 3px 8px;
+    border-radius: 6px;
+    font-size: 11px;
+    font-weight: 600;
+    letter-spacing: 0.2px;
+}
+
+.badge-efectivo {
+    background: #edf7f0;
+    color: #226f43;
+}
+
+.badge-tarjeta {
+    background: #eef3f7;
+    color: #2b5672;
+}
+
+.badge-fiado {
+    background: #fdf5eb;
+    color: #9c631b;
+}
+
+/* =========================================================
+   ACCIONES Y MODAL DE CIERRE DE CAJA
+   ========================================================= */
+
+.daily-header-actions {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+}
+
+.btn-cierre-caja {
+    padding: 8px 16px;
+    font-size: 13px;
+    font-weight: 600;
+}
+
+/* Alerta banner si ya se cerró la caja hoy */
+.cierre-alerta-info {
+    margin-bottom: 20px;
+    padding: 12px 18px;
+    border-radius: 12px;
+    background: #eef7f2;
+    border: 1px solid #c8e6d5;
+    color: #1f5e39;
+    font-size: 13px;
+}
+
+.cierre-alerta-content {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 8px;
+}
+
+/* Resumen del sistema dentro del modal */
+.cierre-modal-summary {
+    margin: 16px 26px 0;
+    padding: 12px 16px;
+    background: #f8fafb;
+    border: 1px solid var(--app-border);
+    border-radius: 10px;
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+}
+
+.cierre-summary-row {
+    display: flex;
+    justify-content: space-between;
+    font-size: 12px;
+    color: var(--app-muted);
+}
+
+.cierre-summary-row strong {
+    color: var(--app-text);
+}
+
+/* Cuerpo y campos del modal de cierre */
+.cierre-modal-body {
+    margin: 16px 26px 0;
+}
+
+.cierre-cuadratura-box {
+    margin-top: 12px;
+    padding: 10px 14px;
+    border-radius: 8px;
+    background: #f8fafb;
+    border: 1px solid var(--app-border);
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.cierre-diff-label {
+    font-size: 11px;
+    color: var(--app-muted);
+    font-weight: 600;
+}
+
+.cierre-diff-val span {
+    font-size: 13px;
+    font-weight: 700;
+}
+
+.diff-exacto {
+    color: #226f43;
+}
+
+.diff-sobrante {
+    color: #2b5672;
+}
+
+.diff-faltante {
+    color: #9e3838;
+}
+
+.cierre-modal-nota {
+    margin-top: 14px;
+}

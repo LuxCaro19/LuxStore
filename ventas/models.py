@@ -90,3 +90,61 @@ class DetalleVenta(models.Model):
     class Meta:
         verbose_name = "Detalle de venta"
         verbose_name_plural = "Detalles de venta"
+
+
+class CierreCaja(models.Model):
+    fecha = models.DateField(
+        verbose_name="Fecha del corte",
+    )
+
+    cerrado_en = models.DateTimeField(
+        auto_now_add=True,
+        verbose_name="Fecha y hora de cierre",
+    )
+
+    cantidad_ventas = models.PositiveIntegerField(
+        default=0,
+        verbose_name="Cantidad de ventas",
+    )
+
+    total_efectivo_sistema = models.PositiveBigIntegerField(
+        default=0,
+        verbose_name="Efectivo según sistema",
+    )
+
+    total_tarjeta_sistema = models.PositiveBigIntegerField(
+        default=0,
+        verbose_name="Tarjeta según sistema",
+    )
+
+    total_fiado_sistema = models.PositiveBigIntegerField(
+        default=0,
+        verbose_name="Fiado según sistema",
+    )
+
+    total_vendido = models.PositiveBigIntegerField(
+        default=0,
+        verbose_name="Total vendido",
+    )
+
+    efectivo_real = models.PositiveBigIntegerField(
+        verbose_name="Efectivo contado en caja",
+    )
+
+    diferencia = models.BigIntegerField(
+        default=0,
+        verbose_name="Diferencia (Real - Sistema)",
+    )
+
+    nota = models.TextField(
+        blank=True,
+        verbose_name="Nota u observación",
+    )
+
+    def __str__(self):
+        return f"Cierre de caja {self.fecha} ({self.cerrado_en.strftime('%H:%M')})"
+
+    class Meta:
+        verbose_name = "Cierre de caja"
+        verbose_name_plural = "Cierres de caja"
+        ordering = ["-cerrado_en"]

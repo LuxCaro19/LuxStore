@@ -4,7 +4,7 @@ from django.db.models import Q
 from django.http import JsonResponse
 from django.shortcuts import render
 from productos.models import Producto
-from .models import Venta, DetalleVenta
+from .models import Venta, DetalleVenta, CierreCaja
 from django.db.models import Sum
 from django.utils import timezone
 from fiadores.models import Fiador
@@ -332,12 +332,40 @@ def corte_diario(request):
 
     cantidad_ventas = ventas.count()
 
+    # Total efectivo percibido hoy
+    total_efectivo = (
+        ventas.filter(medio_pago=Venta.MedioPago.EFECTIVO)
+        .aggregate(total=Sum("total"))["total"]
+        or 0
+    )
+
+    # Total cobrado con tarjeta hoy
+    total_tarjeta = (
+        ventas.filter(medio_pago=Venta.MedioPago.TARJETA)
+        .aggregate(total=Sum("total"))["total"]
+        or 0
+    )
+
+    # Total efectivamente ingresado (Efectivo + Tarjeta)
+    total_percibido = total_efectivo + total_tarjeta
+
+    # Total fiado del día (cuentas por cobrar, no es dinero en caja hoy)
+    total_fiado = (
+        ventas.filter(medio_pago=Venta.MedioPago.FIADO)
+        .aggregate(total=Sum("total"))["total"]
+        or 0
+    )
+
+    # Total general bruto vendido
     total_vendido = (
         ventas.aggregate(total=Sum("total"))["total"]
         or 0
     )
 
-    ultimas_ventas = ventas[:10]
+    ultimas_ventas = ventas[:25]
+
+    # Verificar si ya existe un cierre de caja registrado hoy
+    ultimo_cierre = CierreCaja.objects.filter(fecha=hoy).first()
 
     return render(
         request,
@@ -346,6 +374,95 @@ def corte_diario(request):
             "hoy": hoy,
             "cantidad_ventas": cantidad_ventas,
             "total_vendido": total_vendido,
+            "total_efectivo": total_efectivo,
+            "total_tarjeta": total_tarjeta,
+            "total_percibido": total_percibido,
+            "total_fiado": total_fiado,
             "ultimas_ventas": ultimas_ventas,
+            "ultimo_cierre": ultimo_cierre,
         },
+    )
+
+
+def cerrar_caja(request):
+    """
+    Endpoint POST (fetch JSON) para registrar el cierre de caja del día con cuadratura de efectivo.
+    """
+    if request.method != "POST":
+        return JsonResponse({"ok": False, "mensaje": "Método no permitido."}, status=405)
+
+    try:
+        datos = json.loads(request.body)
+    except json.JSONDecodeError:
+        return JsonResponse({"ok": False, "mensaje": "Datos no válidos."}, status=400)
+
+    try:
+        efectivo_real = int(datos.get("efectivo_real", ""))
+        if efectivo_real < 0:
+            raise ValueError
+    except (TypeError, ValueError):
+        return JsonResponse(
+            {"ok": False, "mensaje": "Ingresa un monto de efectivo válido (igual o mayor a $0)."},
+            status=400,
+        )
+
+    nota = str(datos.get("nota", "")).strip()
+    hoy = timezone.localdate()
+
+    ventas = Venta.objects.filter(
+        estado=Venta.Estado.COMPLETADA,
+        creada_en__date=hoy,
+    )
+
+    cantidad_ventas = ventas.count()
+
+    total_efectivo = (
+        ventas.filter(medio_pago=Venta.MedioPago.EFECTIVO)
+        .aggregate(total=Sum("total"))["total"]
+        or 0
+    )
+
+    total_tarjeta = (
+        ventas.filter(medio_pago=Venta.MedioPago.TARJETA)
+        .aggregate(total=Sum("total"))["total"]
+        or 0
+    )
+
+    total_fiado = (
+        ventas.filter(medio_pago=Venta.MedioPago.FIADO)
+        .aggregate(total=Sum("total"))["total"]
+        or 0
+    )
+
+    total_vendido = (
+        ventas.aggregate(total=Sum("total"))["total"]
+        or 0
+    )
+
+    diferencia = efectivo_real - total_efectivo
+
+    with transaction.atomic():
+        cierre = CierreCaja.objects.create(
+            fecha=hoy,
+            cantidad_ventas=cantidad_ventas,
+            total_efectivo_sistema=total_efectivo,
+            total_tarjeta_sistema=total_tarjeta,
+            total_fiado_sistema=total_fiado,
+            total_vendido=total_vendido,
+            efectivo_real=efectivo_real,
+            diferencia=diferencia,
+            nota=nota,
+        )
+
+    return JsonResponse(
+        {
+            "ok": True,
+            "mensaje": "Cierre de caja registrado exitosamente.",
+            "cierre": {
+                "id": cierre.id,
+                "hora": timezone.localtime(cierre.cerrado_en).strftime("%H:%M"),
+                "efectivo_real": cierre.efectivo_real,
+                "diferencia": cierre.diferencia,
+            },
+        }
     )

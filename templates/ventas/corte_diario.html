@@ -6,6 +6,92 @@ Corte diario | LuxStore
 
 {% block content %}
 
+<form style="display: none;">
+    {% csrf_token %}
+</form>
+
+<div
+    class="daily-cut-wrapper"
+    x-data="{
+        mostrarModalCierre: false,
+        cerrandoCaja: false,
+        efectivoContado: '',
+        notaCierre: '',
+        mensajeCierre: '',
+        errorCierre: '',
+        totalEfectivoSistema: {{ total_efectivo }},
+
+        moneda(valor) {
+            return '$' + new Intl.NumberFormat(
+                'es-CL'
+            ).format(valor);
+        },
+
+        abrirModalCierre() {
+            this.efectivoContado = '';
+            this.notaCierre = '';
+            this.mensajeCierre = '';
+            this.errorCierre = '';
+            this.mostrarModalCierre = true;
+            this.$nextTick(() => {
+                if (this.$refs.inputContado) this.$refs.inputContado.focus();
+            });
+        },
+
+        cerrarModalCierre() {
+            if (this.cerrandoCaja) return;
+            this.mostrarModalCierre = false;
+        },
+
+        diferenciaCalculada() {
+            const contado = parseInt(this.efectivoContado, 10);
+            if (isNaN(contado)) return null;
+            return contado - this.totalEfectivoSistema;
+        },
+
+        async confirmarCierre() {
+            const contado = parseInt(this.efectivoContado, 10);
+            if (isNaN(contado) || contado < 0) {
+                this.errorCierre = 'Ingresa el monto de efectivo contado en caja.';
+                return;
+            }
+
+            this.cerrandoCaja = true;
+            this.errorCierre = '';
+            const csrfToken = document.querySelector('[name=csrfmiddlewaretoken]').value;
+
+            try {
+                const res = await fetch(`{% url 'ventas:cerrar_caja' %}`, {
+                    method: 'POST',
+                    credentials: 'same-origin',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'X-CSRFToken': csrfToken,
+                        'X-Requested-With': 'XMLHttpRequest'
+                    },
+                    body: JSON.stringify({
+                        efectivo_real: contado,
+                        nota: this.notaCierre
+                    })
+                });
+
+                const data = await res.json();
+                if (!res.ok) {
+                    this.errorCierre = data.mensaje || 'Error al cerrar caja.';
+                    return;
+                }
+
+                this.mostrarModalCierre = false;
+                window.location.reload();
+            } catch (err) {
+                this.errorCierre = 'No fue posible conectar con el servidor.';
+            } finally {
+                this.cerrandoCaja = false;
+            }
+        }
+    }"
+>
+
 <div class="page-header">
 
     <div>
@@ -18,59 +104,106 @@ Corte diario | LuxStore
         </p>
     </div>
 
-    <div class="daily-date">
-        {{ hoy|date:"d/m/Y" }}
+    <div class="daily-header-actions">
+        <div class="daily-date">
+            {{ hoy|date:"d/m/Y" }}
+        </div>
+        <button
+            type="button"
+            class="btn btn-lux btn-cierre-caja"
+            @click="abrirModalCierre()"
+        >
+            🔒 Cerrar caja
+        </button>
     </div>
 
 </div>
 
+<!-- BANNER SI YA SE CERRÓ LA CAJA HOY -->
+{% if ultimo_cierre %}
+<div class="cierre-alerta-info">
+    <div class="cierre-alerta-content">
+        <span>✓ Caja cerrada hoy a las {{ ultimo_cierre.cerrado_en|date:"H:i" }} hrs.</span>
+        <span>Efectivo contado: <strong>${{ ultimo_cierre.efectivo_real }}</strong>
+            {% if ultimo_cierre.diferencia == 0 %}
+                (Cuadre exacto)
+            {% elif ultimo_cierre.diferencia > 0 %}
+                (Sobrante: +${{ ultimo_cierre.diferencia }})
+            {% else %}
+                (Faltante: -${{ ultimo_cierre.diferencia|stringformat:"+d"|slice:"1:" }})
+            {% endif %}
+        </span>
+    </div>
+</div>
+{% endif %}
 
-<div
-    class="daily-cut"
-    x-data="{
-        moneda(valor) {
-            return '$' + new Intl.NumberFormat(
-                'es-CL'
-            ).format(valor);
-        }
-    }"
->
+<div class="daily-cut">
 
     <!-- RESUMEN -->
-    <div class="daily-summary">
+    <div class="daily-summary daily-summary-grid">
 
         <div class="daily-summary-card">
-
             <span class="daily-summary-label">
                 Ventas realizadas
             </span>
-
             <strong class="daily-summary-value">
                 {{ cantidad_ventas }}
             </strong>
-
             <span class="daily-summary-help">
-                Operaciones completadas hoy
+                Operaciones completadas
             </span>
-
         </div>
 
+        <div class="daily-summary-card">
+            <span class="daily-summary-label">
+                Efectivo
+            </span>
+            <strong
+                class="daily-summary-value"
+                x-text="moneda({{ total_efectivo }})"
+            ></strong>
+            <span class="daily-summary-help">
+                En caja
+            </span>
+        </div>
+
+        <div class="daily-summary-card">
+            <span class="daily-summary-label">
+                Tarjeta
+            </span>
+            <strong
+                class="daily-summary-value"
+                x-text="moneda({{ total_tarjeta }})"
+            ></strong>
+            <span class="daily-summary-help">
+                POS / débito / crédito
+            </span>
+        </div>
 
         <div class="daily-summary-card daily-summary-main">
-
             <span class="daily-summary-label">
-                Total vendido
+                Total percibido
             </span>
-
             <strong
                 class="daily-summary-total"
-                x-text="moneda({{ total_vendido }})"
+                x-text="moneda({{ total_percibido }})"
             ></strong>
-
             <span class="daily-summary-help">
-                Acumulado del día
+                Efectivo + Tarjeta
             </span>
+        </div>
 
+        <div class="daily-summary-card daily-summary-fiado">
+            <span class="daily-summary-label">
+                Total fiado
+            </span>
+            <strong
+                class="daily-summary-value"
+                x-text="moneda({{ total_fiado }})"
+            ></strong>
+            <span class="daily-summary-help">
+                Por cobrar (no entró hoy)
+            </span>
         </div>
 
     </div>
@@ -112,10 +245,11 @@ Corte diario | LuxStore
                         </div>
 
 
-                        <div class="daily-sale-status">
-                            Completada
+                        <div class="daily-sale-payment">
+                            <span class="badge-payment badge-{{ venta.medio_pago|lower }}">
+                                {{ venta.get_medio_pago_display }}
+                            </span>
                         </div>
-
 
                         <div
                             class="daily-sale-total"
@@ -145,6 +279,132 @@ Corte diario | LuxStore
         {% endif %}
 
     </section>
+
+    <!-- MODAL DE CIERRE DE CAJA -->
+    <div
+        class="lux-confirm-backdrop"
+        x-show="mostrarModalCierre"
+        x-transition.opacity
+        x-cloak
+        @click.self="cerrarModalCierre()"
+        @keydown.escape.window="cerrarModalCierre()"
+    >
+        <div
+            class="lux-confirm-card"
+            x-show="mostrarModalCierre"
+            x-transition
+        >
+            <div class="lux-confirm-header">
+                <div>
+                    <span class="lux-confirm-eyebrow">Corte diario</span>
+                    <h2>Cerrar caja del día</h2>
+                    <p>Cuadra el efectivo físico antes de cerrar.</p>
+                </div>
+                <button
+                    type="button"
+                    class="lux-confirm-close"
+                    @click="cerrarModalCierre()"
+                    :disabled="cerrandoCaja"
+                >
+                    ×
+                </button>
+            </div>
+
+            <!-- Resumen del sistema -->
+            <div class="cierre-modal-summary">
+                <div class="cierre-summary-row">
+                    <span>Efectivo según sistema:</span>
+                    <strong x-text="moneda(totalEfectivoSistema)"></strong>
+                </div>
+                <div class="cierre-summary-row">
+                    <span>Tarjeta según sistema:</span>
+                    <strong>{{ total_tarjeta|default:0 }}</strong>
+                </div>
+                <div class="cierre-summary-row">
+                    <span>Ventas fiadas hoy:</span>
+                    <strong>{{ total_fiado|default:0 }}</strong>
+                </div>
+            </div>
+
+            <!-- Input efectivo contado -->
+            <div class="cierre-modal-body">
+                <label for="efectivo-contado" class="lux-label">Efectivo contado en caja</label>
+                <div class="lux-input-group">
+                    <span class="lux-input-prefix">$</span>
+                    <input
+                        id="efectivo-contado"
+                        type="number"
+                        x-ref="inputContado"
+                        x-model="efectivoContado"
+                        class="form-control lux-input"
+                        placeholder="Monto en billetes y monedas"
+                        autocomplete="off"
+                        :disabled="cerrandoCaja"
+                        @keydown.enter.prevent="confirmarCierre()"
+                    >
+                </div>
+
+                <!-- Cuadratura en vivo -->
+                <div class="cierre-cuadratura-box" x-show="diferenciaCalculada() !== null" x-cloak>
+                    <span class="cierre-diff-label">Resultado cuadratura:</span>
+                    <div class="cierre-diff-val">
+                        <template x-if="diferenciaCalculada() === 0">
+                            <span class="diff-exacto">✓ Cuadre exacto ($0)</span>
+                        </template>
+                        <template x-if="diferenciaCalculada() > 0">
+                            <span class="diff-sobrante" x-text="'▲ Sobrante: +' + moneda(diferenciaCalculada())"></span>
+                        </template>
+                        <template x-if="diferenciaCalculada() < 0">
+                            <span class="diff-faltante" x-text="'▼ Faltante: -' + moneda(Math.abs(diferenciaCalculada()))"></span>
+                        </template>
+                    </div>
+                </div>
+
+                <div class="cierre-modal-nota">
+                    <label for="nota-cierre" class="lux-label">Observaciones (opcional)</label>
+                    <input
+                        id="nota-cierre"
+                        type="text"
+                        x-model="notaCierre"
+                        class="form-control lux-input"
+                        placeholder="Ej: Pago de pan $5.000, sencillo, etc."
+                        maxlength="250"
+                        autocomplete="off"
+                        :disabled="cerrandoCaja"
+                    >
+                </div>
+
+                <div
+                    class="lux-confirm-error"
+                    x-show="errorCierre"
+                    x-text="errorCierre"
+                    x-cloak
+                ></div>
+            </div>
+
+            <div class="lux-confirm-actions">
+                <button
+                    type="button"
+                    class="btn-cancel"
+                    @click="cerrarModalCierre()"
+                    :disabled="cerrandoCaja"
+                >
+                    Cancelar
+                </button>
+                <button
+                    type="button"
+                    class="btn btn-lux lux-confirm-button"
+                    @click="confirmarCierre()"
+                    :disabled="cerrandoCaja"
+                >
+                    <span x-show="!cerrandoCaja">Confirmar cierre</span>
+                    <span x-show="cerrandoCaja" x-cloak>Cerrando...</span>
+                </button>
+            </div>
+        </div>
+    </div>
+
+    </div>
 
 </div>
 

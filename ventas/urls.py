@@ -25,4 +25,10 @@ urlpatterns = [
         views.corte_diario,
         name="corte_diario",
     ),
+
+    path(
+        "cerrar-caja/",
+        views.cerrar_caja,
+        name="cerrar_caja",
+    ),
 ]
