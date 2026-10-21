@@ -26,6 +26,8 @@ Venta | LuxStore
         ventaRealizada: false,
         mensajeCobro: '',
         mostrarConfirmacion: false,
+        medioPago: 'EFECTIVO',
+        montoRecibido: '',
         esFiado: false,
         fiadorId: '',
         fiadorNombre: '',
@@ -55,6 +57,8 @@ Venta | LuxStore
             }
 
             this.mensajeCobro = '';
+            this.medioPago = 'EFECTIVO';
+            this.montoRecibido = '';
             this.esFiado = false;
             this.fiadorId = '';
             this.fiadorNombre = '';
@@ -63,6 +67,28 @@ Venta | LuxStore
             this.cancelarCrearFiador();
 
             this.mostrarConfirmacion = true;
+        },
+
+        cambiarMedioPago(medio) {
+            this.medioPago = medio;
+            if (medio === 'FIADO') {
+                this.esFiado = true;
+            } else {
+                this.esFiado = false;
+                this.fiadorId = '';
+                this.fiadorNombre = '';
+                this.fiadorDeuda = 0;
+                this.selectorFiadorAbierto = false;
+                this.cancelarCrearFiador();
+            }
+            this.mensajeCobro = '';
+        },
+
+        vueltoCalculado() {
+            if (this.medioPago !== 'EFECTIVO') return null;
+            const rec = parseInt(this.montoRecibido, 10);
+            if (isNaN(rec)) return null;
+            return rec - this.total();
         },
 
         seleccionarFiador(f) {
@@ -314,13 +340,25 @@ Venta | LuxStore
 
             try {
 
-                if (this.esFiado && !this.fiadorId) {
-
+                if (this.medioPago === 'FIADO' && !this.fiadorId) {
                     this.mensajeCobro =
                         'Selecciona un fiador para continuar.';
-
                     return;
                 }
+
+                const vuelto = this.vueltoCalculado();
+                if (this.medioPago === 'EFECTIVO' && vuelto !== null && vuelto < 0) {
+                    this.mensajeCobro = 'El monto recibido es menor al total.';
+                    return;
+                }
+
+                const payload = {
+                    items: items,
+                    medio_pago: this.medioPago,
+                    fiado: this.medioPago === 'FIADO',
+                    fiador_id: (this.medioPago === 'FIADO') ? (this.fiadorId || null) : null,
+                    monto_recibido: (this.medioPago === 'EFECTIVO' && this.montoRecibido !== '') ? parseInt(this.montoRecibido, 10) : null
+                };
 
                 const respuesta = await fetch(
                     `{% url 'ventas:confirmar_venta' %}`,
@@ -335,11 +373,7 @@ Venta | LuxStore
                             'X-Requested-With': 'XMLHttpRequest'
                         },
 
-                        body: JSON.stringify({
-                            items: items,
-                            fiado: this.esFiado,
-                            fiador_id: this.fiadorId || null
-                        })
+                        body: JSON.stringify(payload)
                     }
                 );
 
@@ -932,33 +966,85 @@ Venta | LuxStore
 
             </div>
 
-            <div class="lux-fiado-option">
+            <!-- SELECTOR DE MEDIO DE PAGO (3 BOTONES) -->
+            <div class="lux-payment-methods">
+                <label class="lux-label">Medio de pago</label>
+                <div class="lux-payment-grid">
+                    <button
+                        type="button"
+                        class="lux-payment-btn"
+                        :class="{ 'active': medioPago === 'EFECTIVO' }"
+                        @click="cambiarMedioPago('EFECTIVO')"
+                    >
+                        <span class="lux-payment-icon">💵</span>
+                        <strong>Efectivo</strong>
+                    </button>
 
-                <div class="lux-fiado-card">
+                    <button
+                        type="button"
+                        class="lux-payment-btn"
+                        :class="{ 'active': medioPago === 'TARJETA' }"
+                        @click="cambiarMedioPago('TARJETA')"
+                    >
+                        <span class="lux-payment-icon">💳</span>
+                        <strong>Tarjeta</strong>
+                    </button>
 
-                    <div class="lux-fiado-card-text">
-                        <strong>Fiar esta venta</strong>
-                        <span>Asocia esta venta a un fiador</span>
-                    </div>
-
-                    <div class="form-check form-switch m-0">
-                        <input
-                            id="fiado-toggle"
-                            type="checkbox"
-                            class="form-check-input lux-switch-input"
-                            x-model="esFiado"
-                        >
-                    </div>
-
+                    <button
+                        type="button"
+                        class="lux-payment-btn"
+                        :class="{ 'active': medioPago === 'FIADO' }"
+                        @click="cambiarMedioPago('FIADO')"
+                    >
+                        <span class="lux-payment-icon">👤</span>
+                        <strong>Fiado</strong>
+                    </button>
                 </div>
+            </div>
 
+            <!-- CALCULADORA DE VUELTO (SOLO EFECTIVO) -->
+            <div
+                class="lux-cash-wrap"
+                x-show="medioPago === 'EFECTIVO'"
+                x-transition
+                x-cloak
+            >
+                <div class="lux-cash-box">
+                    <div class="lux-cash-input-col">
+                        <label for="monto-recibido" class="lux-label">¿Con cuánto paga? (opcional)</label>
+                        <div class="lux-input-group">
+                            <span class="lux-input-prefix">$</span>
+                            <input
+                                id="monto-recibido"
+                                type="number"
+                                x-model="montoRecibido"
+                                class="form-control lux-input"
+                                placeholder="Ej: 5000"
+                                autocomplete="off"
+                                @keydown.enter.prevent="confirmarVenta()"
+                            >
+                        </div>
+                    </div>
 
-                <div
-                    class="lux-fiado-select"
-                    x-show="esFiado"
-                    x-transition
-                    x-cloak
-                >
+                    <div class="lux-cash-change-col" x-show="vueltoCalculado() !== null" x-cloak>
+                        <span class="lux-cash-label">Vuelto:</span>
+                        <strong
+                            class="lux-cash-val"
+                            :class="{ 'deficit': vueltoCalculado() < 0 }"
+                            x-text="vueltoCalculado() < 0 ? 'Faltan ' + moneda(Math.abs(vueltoCalculado())) : moneda(vueltoCalculado())"
+                        ></strong>
+                    </div>
+                </div>
+            </div>
+
+            <!-- SELECCIÓN / CREACIÓN DE FIADOR (SOLO CUANDO ES FIADO) -->
+            <div
+                class="lux-fiado-option"
+                x-show="medioPago === 'FIADO'"
+                x-transition
+                x-cloak
+            >
+                <div class="lux-fiado-select">
 
                     <label
                         for="fiador-select"

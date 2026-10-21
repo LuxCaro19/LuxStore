@@ -99,13 +99,38 @@ def confirmar_venta(request):
 
     items = datos.get("items", [])
 
-    es_fiado = bool(
-    datos.get("fiado", False)
-    )
+    medio_pago = str(datos.get("medio_pago", "")).strip().upper()
+    es_fiado = bool(datos.get("fiado", False))
+
+    if es_fiado or medio_pago == Venta.MedioPago.FIADO:
+        medio_pago = Venta.MedioPago.FIADO
+        es_fiado = True
+    elif medio_pago == Venta.MedioPago.TARJETA:
+        medio_pago = Venta.MedioPago.TARJETA
+    elif medio_pago == Venta.MedioPago.TRANSFERENCIA:
+        medio_pago = Venta.MedioPago.TRANSFERENCIA
+    else:
+        medio_pago = Venta.MedioPago.EFECTIVO
 
     fiador_id = datos.get(
         "fiador_id"
     )
+
+    monto_recibido_raw = datos.get("monto_recibido")
+    monto_recibido = None
+    if medio_pago == Venta.MedioPago.EFECTIVO and monto_recibido_raw not in (None, ""):
+        try:
+            monto_recibido = int(monto_recibido_raw)
+            if monto_recibido < 0:
+                raise ValueError
+        except (TypeError, ValueError):
+            return JsonResponse(
+                {
+                    "ok": False,
+                    "mensaje": "El monto recibido no es válido.",
+                },
+                status=400,
+            )
 
     if not items:
         return JsonResponse(
@@ -226,10 +251,23 @@ def confirmar_venta(request):
                     }
                 )
 
+            # Validación del monto recibido si es en efectivo
+            if medio_pago == Venta.MedioPago.EFECTIVO and monto_recibido is not None:
+                if monto_recibido < total:
+                    return JsonResponse(
+                        {
+                            "ok": False,
+                            "mensaje": f"El monto recibido (${monto_recibido:,}) es menor al total (${total:,}).".replace(",", "."),
+                        },
+                        status=400,
+                    )
+
             # Creamos la cabecera.
             venta = Venta.objects.create(
                 total=total,
                 estado=Venta.Estado.COMPLETADA,
+                medio_pago=medio_pago,
+                monto_recibido=monto_recibido,
             )
 
             # Creamos detalles y descontamos stock.
@@ -277,6 +315,9 @@ def confirmar_venta(request):
         "ok": True,
         "venta_id": venta.id,
         "total": venta.total,
+        "medio_pago": venta.medio_pago,
+        "monto_recibido": venta.monto_recibido,
+        "vuelto": venta.vuelto,
         "mensaje": "Venta registrada correctamente.",
     })
 

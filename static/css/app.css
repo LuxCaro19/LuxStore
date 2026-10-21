@@ -4119,3 +4119,109 @@ body {
     border: 1px solid #f2d4d4;
     font-size: 11px;
 }
+
+/* =========================================================
+   SELECTOR DE MEDIOS DE PAGO Y CALCULADORA DE VUELTO
+   ========================================================= */
+
+.lux-payment-methods {
+    margin: 16px 26px 0;
+}
+
+.lux-payment-grid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 8px;
+    margin-top: 6px;
+}
+
+.lux-payment-btn {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    padding: 10px 6px;
+    border: 1px solid var(--app-border);
+    border-radius: 10px;
+    background: #fbfcfc;
+    color: var(--app-text);
+    cursor: pointer;
+    transition: all 0.15s ease;
+    user-select: none;
+}
+
+.lux-payment-btn .lux-payment-icon {
+    font-size: 18px;
+    line-height: 1.2;
+    margin-bottom: 2px;
+}
+
+.lux-payment-btn strong {
+    font-size: 11px;
+    font-weight: 600;
+}
+
+.lux-payment-btn:hover {
+    border-color: #b8c9cf;
+    background: #f2f6f8;
+}
+
+.lux-payment-btn.active {
+    border-color: var(--app-primary);
+    background: #eef4f7;
+    color: var(--app-primary);
+    box-shadow: 0 0 0 1px var(--app-primary);
+}
+
+/* Calculadora de vuelto integrada */
+.lux-cash-wrap {
+    margin: 12px 26px 0;
+}
+
+.lux-cash-box {
+    display: flex;
+    align-items: flex-end;
+    justify-content: space-between;
+    gap: 12px;
+    padding: 12px 14px;
+    border: 1px solid var(--app-border);
+    border-radius: 12px;
+    background: #f8fafb;
+}
+
+.lux-cash-input-col {
+    flex: 1;
+}
+
+.lux-cash-input-col .lux-input {
+    min-height: 42px;
+    font-size: 14px;
+    font-weight: 600;
+    background: #ffffff;
+}
+
+.lux-cash-change-col {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-end;
+    min-width: 100px;
+    padding-bottom: 4px;
+}
+
+.lux-cash-label {
+    font-size: 10px;
+    color: var(--app-muted);
+    font-weight: 600;
+    text-transform: uppercase;
+}
+
+.lux-cash-val {
+    font-size: 16px;
+    font-weight: 700;
+    color: #2b7a51;
+}
+
+.lux-cash-val.deficit {
+    font-size: 12px;
+    color: #9e3838;
+}

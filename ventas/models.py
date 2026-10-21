@@ -8,6 +8,12 @@ class Venta(models.Model):
         COMPLETADA = "COMPLETADA", "Completada"
         ANULADA = "ANULADA", "Anulada"
 
+    class MedioPago(models.TextChoices):
+        EFECTIVO = "EFECTIVO", "Efectivo"
+        TARJETA = "TARJETA", "Tarjeta"
+        TRANSFERENCIA = "TRANSFERENCIA", "Transferencia"
+        FIADO = "FIADO", "Fiado"
+
     total = models.PositiveBigIntegerField(
         default=0,
         verbose_name="Total",
@@ -20,6 +26,19 @@ class Venta(models.Model):
         verbose_name="Estado",
     )
 
+    medio_pago = models.CharField(
+        max_length=20,
+        choices=MedioPago.choices,
+        default=MedioPago.EFECTIVO,
+        verbose_name="Medio de pago",
+    )
+
+    monto_recibido = models.PositiveBigIntegerField(
+        null=True,
+        blank=True,
+        verbose_name="Monto recibido",
+    )
+
     creada_en = models.DateTimeField(
         auto_now_add=True,
         verbose_name="Fecha de venta",
@@ -27,6 +46,12 @@ class Venta(models.Model):
 
     def __str__(self):
         return f"Venta #{self.pk}"
+
+    @property
+    def vuelto(self):
+        if self.monto_recibido is None:
+            return None
+        return self.monto_recibido - self.total
 
     class Meta:
         verbose_name = "Venta"
