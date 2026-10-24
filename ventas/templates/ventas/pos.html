@@ -24,6 +24,7 @@ Venta | LuxStore
 
         cobrando: false,
         ventaRealizada: false,
+        ultimaVentaId: null,
         mensajeCobro: '',
         mostrarConfirmacion: false,
         medioPago: 'EFECTIVO',
@@ -319,6 +320,14 @@ Venta | LuxStore
         },
 
 
+        imprimirTicket(id) {
+            const ventaId = id || this.ultimaVentaId;
+            if (!ventaId) return;
+            const url = `/ventas/${ventaId}/ticket/?autoprint=1`;
+            window.open(url, '_blank', 'width=420,height=650,resizable=yes,scrollbars=yes');
+        },
+
+
         async confirmarVenta() {
 
             if (this.venta.length === 0 || this.cobrando) {
@@ -403,6 +412,7 @@ Venta | LuxStore
                 this.mostrarConfirmacion = false;
 
                 this.ventaRealizada = true;
+                this.ultimaVentaId = datos.venta_id;
 
                 this.mensajeCobro =
                     `Venta #${datos.venta_id} registrada correctamente`;
@@ -412,7 +422,7 @@ Venta | LuxStore
                     this.ventaRealizada = false;
                     this.mensajeCobro = '';
 
-                }, 2500);
+                }, 7000);
 
                 this.$nextTick(() => {
                     this.$refs.busqueda.focus();
@@ -750,8 +760,20 @@ Venta | LuxStore
                         ? 'success'
                         : 'error'
                     "
-                    x-text="mensajeCobro"
-                ></div>
+                >
+                    <span x-text="mensajeCobro"></span>
+                    <template x-if="ventaRealizada && ultimaVentaId">
+                        <div class="pos-sale-message-actions">
+                            <button
+                                type="button"
+                                class="btn-pos-ticket"
+                                @click="imprimirTicket(ultimaVentaId)"
+                            >
+                                🖨️ Imprimir ticket
+                            </button>
+                        </div>
+                    </template>
+                </div>
 
 
 

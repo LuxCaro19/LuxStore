@@ -1,13 +1,12 @@
+import os
 import json
 from django.db import transaction
-from django.db.models import Q
+from django.db.models import Q, Sum
 from django.http import JsonResponse
-from django.shortcuts import render
+from django.shortcuts import render, get_object_or_404
 from productos.models import Producto
 from .models import Venta, DetalleVenta, CierreCaja
-from django.db.models import Sum
 from django.utils import timezone
-from fiadores.models import Fiador
 from fiadores.models import Fiador, MovimientoFiado
 
 
@@ -466,3 +465,49 @@ def cerrar_caja(request):
             },
         }
     )
+
+
+def ticket_venta(request, pk):
+    """
+    Vista optimizada para impresión de ticket térmico (58mm / 80mm).
+    Comprobante interno no válido como boleta.
+    """
+    venta = get_object_or_404(
+        Venta.objects.prefetch_related("detalles__producto"),
+        pk=pk,
+    )
+
+    fiador = None
+    if venta.medio_pago == Venta.MedioPago.FIADO:
+        movimiento = venta.movimientos_fiados.select_related("fiador").first()
+        if movimiento:
+            fiador = movimiento.fiador
+
+    negocio_nombre = os.getenv("TICKET_NEGOCIO_NOMBRE", "LUXSTORE")
+    negocio_direccion = os.getenv("TICKET_NEGOCIO_DIRECCION", "")
+    negocio_telefono = os.getenv("TICKET_NEGOCIO_TELEFONO", "")
+    negocio_rut = os.getenv("TICKET_NEGOCIO_RUT", "")
+
+    ancho_mm = request.GET.get("ancho", os.getenv("TICKET_ANCHO_MM", "58")).strip()
+    if ancho_mm not in ("58", "80"):
+        ancho_mm = "58"
+
+    autoprint = request.GET.get("autoprint", "0") in ("1", "true")
+
+    total_articulos = sum(d.cantidad for d in venta.detalles.all())
+
+    context = {
+        "venta": venta,
+        "detalles": venta.detalles.all(),
+        "fiador": fiador,
+        "total_articulos": total_articulos,
+        "negocio_nombre": negocio_nombre,
+        "negocio_direccion": negocio_direccion,
+        "negocio_telefono": negocio_telefono,
+        "negocio_rut": negocio_rut,
+        "ancho_mm": ancho_mm,
+        "autoprint": autoprint,
+        "fecha_hora": timezone.localtime(venta.creada_en),
+    }
+
+    return render(request, "ventas/ticket.html", context)

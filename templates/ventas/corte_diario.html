@@ -256,6 +256,18 @@ Corte diario | LuxStore
                             x-text="moneda({{ venta.total }})"
                         ></div>
 
+                        <div class="daily-sale-actions">
+                            <a
+                                href="{% url 'ventas:ticket_venta' venta.id %}"
+                                target="_blank"
+                                class="btn-ticket-icon"
+                                title="Imprimir ticket #{{ venta.id }}"
+                                onclick="window.open(this.href, '_blank', 'width=420,height=650,resizable=yes,scrollbars=yes'); return false;"
+                            >
+                                🖨️
+                            </a>
+                        </div>
+
                     </div>
 
                 {% endfor %}

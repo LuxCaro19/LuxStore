@@ -31,4 +31,10 @@ urlpatterns = [
         views.cerrar_caja,
         name="cerrar_caja",
     ),
+
+    path(
+        "<int:pk>/ticket/",
+        views.ticket_venta,
+        name="ticket_venta",
+    ),
 ]

@@ -1,0 +1,273 @@
+{% load static %}
+{% load ventas_extras %}
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Ticket #{{ venta.id }} - {{ negocio_nombre }}</title>
+    <link rel="stylesheet" href="{% static 'css/app.css' %}">
+    <style>
+        /* Reglas especializadas de impresión térmica */
+        @page {
+            margin: 0;
+            size: auto;
+        }
+
+        @media print {
+            html, body {
+                margin: 0 !important;
+                padding: 0 !important;
+                background: #ffffff !important;
+                color: #000000 !important;
+            }
+
+            .lux-ticket-screen-bar {
+                display: none !important;
+            }
+
+            .lux-ticket-wrapper {
+                padding: 0 !important;
+                margin: 0 !important;
+                background: none !important;
+                min-height: auto !important;
+            }
+
+            .lux-ticket-card {
+                box-shadow: none !important;
+                border: none !important;
+                border-radius: 0 !important;
+                padding: 1.5mm 2mm !important;
+                margin: 0 !important;
+                width: 100% !important;
+                max-width: 100% !important;
+            }
+
+            .lux-ticket-card.ticket-58mm {
+                width: 58mm !important;
+                max-width: 58mm !important;
+            }
+
+            .lux-ticket-card.ticket-80mm {
+                width: 78mm !important;
+                max-width: 78mm !important;
+            }
+        }
+    </style>
+</head>
+<body class="ticket-page-body">
+
+    <!-- Barra de acciones en pantalla (oculta en papel) -->
+    <header class="lux-ticket-screen-bar">
+        <div class="ticket-bar-info">
+            <span class="ticket-bar-title">🖨️ Ticket de Venta #{{ venta.id }}</span>
+            <span class="ticket-bar-meta">{{ fecha_hora|date:"d/m/Y H:i" }} &bull; Total: {{ venta.total|peso }}</span>
+        </div>
+
+        <div class="ticket-bar-controls">
+            <div class="ticket-width-toggle">
+                <button
+                    type="button"
+                    class="btn-size-toggle {% if ancho_mm == '58' %}active{% endif %}"
+                    onclick="cambiarAncho('58')"
+                    title="Simular rollo térmico de 58mm"
+                >58 mm</button>
+                <button
+                    type="button"
+                    class="btn-size-toggle {% if ancho_mm == '80' %}active{% endif %}"
+                    onclick="cambiarAncho('80')"
+                    title="Simular rollo térmico de 80mm"
+                >80 mm</button>
+            </div>
+
+            <button
+                type="button"
+                class="btn-ticket-action btn-ticket-print"
+                onclick="window.print()"
+            >
+                🖨️ Imprimir
+            </button>
+
+            <button
+                type="button"
+                class="btn-ticket-action btn-ticket-close"
+                onclick="window.close()"
+            >
+                ✕ Cerrar
+            </button>
+        </div>
+    </header>
+
+    <!-- Contenedor del ticket centrado en pantalla -->
+    <main class="lux-ticket-wrapper">
+        <article
+            id="ticketCard"
+            class="lux-ticket-card {% if ancho_mm == '80' %}ticket-80mm{% else %}ticket-58mm{% endif %}"
+        >
+            <!-- CABECERA DE NEGOCIO -->
+            <header class="ticket-header">
+                <h1 class="ticket-negocio-nombre">{{ negocio_nombre }}</h1>
+                {% if negocio_rut %}
+                    <p class="ticket-text-center ticket-sub">{{ negocio_rut }}</p>
+                {% endif %}
+                {% if negocio_direccion %}
+                    <p class="ticket-text-center ticket-sub">{{ negocio_direccion }}</p>
+                {% endif %}
+                {% if negocio_telefono %}
+                    <p class="ticket-text-center ticket-sub">Tel: {{ negocio_telefono }}</p>
+                {% endif %}
+            </header>
+
+            <div class="ticket-divider-double"></div>
+
+            <!-- ADVERTENCIA LEGAL NO VÁLIDO COMO BOLETA -->
+            <section class="ticket-banner-aviso">
+                <p class="ticket-bold ticket-text-center">*** COMPROBANTE INTERNO ***</p>
+                <p class="ticket-bold ticket-text-center">NO VÁLIDO COMO BOLETA</p>
+            </section>
+
+            <div class="ticket-divider-dashed"></div>
+
+            <!-- METADATOS DE LA TRANSACCIÓN -->
+            <section class="ticket-meta">
+                <div class="ticket-meta-row">
+                    <span>Ticket:</span>
+                    <strong class="ticket-bold">#{{ venta.id }}</strong>
+                </div>
+                <div class="ticket-meta-row">
+                    <span>Fecha:</span>
+                    <span>{{ fecha_hora|date:"d/m/Y H:i:s" }}</span>
+                </div>
+                <div class="ticket-meta-row">
+                    <span>Medio de Pago:</span>
+                    <strong class="ticket-bold">{{ venta.get_medio_pago_display|upper }}</strong>
+                </div>
+                {% if fiador %}
+                <div class="ticket-meta-row ticket-meta-fiador">
+                    <span>Cliente Fiador:</span>
+                    <strong class="ticket-bold">{{ fiador.nombre|upper }}</strong>
+                </div>
+                {% endif %}
+            </section>
+
+            <div class="ticket-divider-dashed"></div>
+
+            <!-- TABLA DE PRODUCTOS -->
+            <table class="ticket-table">
+                <thead>
+                    <tr>
+                        <th class="col-cant">CANT</th>
+                        <th class="col-desc">PRODUCTO</th>
+                        <th class="col-subt">TOTAL</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for item in detalles %}
+                    <tr>
+                        <td class="col-cant">{{ item.cantidad }}</td>
+                        <td class="col-desc">
+                            <span class="item-name">{{ item.producto.nombre }}</span>
+                            {% if item.cantidad > 1 %}
+                                <span class="item-unit-price">({{ item.precio_unitario|peso }} c/u)</span>
+                            {% endif %}
+                        </td>
+                        <td class="col-subt">{{ item.subtotal|peso }}</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+
+            <div class="ticket-divider-dashed"></div>
+
+            <!-- TOTALES Y DESGLOSE -->
+            <section class="ticket-totales">
+                <div class="ticket-total-row ticket-items-count">
+                    <span>Total artículos:</span>
+                    <span>{{ total_articulos }}</span>
+                </div>
+
+                <div class="ticket-total-row ticket-total-highlight">
+                    <span class="ticket-total-label">TOTAL:</span>
+                    <span class="ticket-total-amount">{{ venta.total|peso }}</span>
+                </div>
+
+                {% if venta.medio_pago == "EFECTIVO" and venta.monto_recibido %}
+                <div class="ticket-divider-dotted"></div>
+                <div class="ticket-total-row">
+                    <span>Efectivo Recibido:</span>
+                    <span>{{ venta.monto_recibido|peso }}</span>
+                </div>
+                <div class="ticket-total-row ticket-bold">
+                    <span>Vuelto:</span>
+                    <span>{{ venta.vuelto|peso }}</span>
+                </div>
+                {% endif %}
+
+                {% if fiador %}
+                <div class="ticket-divider-dotted"></div>
+                <div class="ticket-fiado-box">
+                    <div class="ticket-total-row">
+                        <span>Estado:</span>
+                        <strong class="ticket-bold">PENDIENTE (FIADO)</strong>
+                    </div>
+                    <div class="ticket-total-row">
+                        <span>Saldo Total Cuenta:</span>
+                        <strong class="ticket-bold">{{ fiador.saldo|peso }}</strong>
+                    </div>
+
+                    <div class="ticket-firma-wrapper">
+                        <div class="ticket-firma-line"></div>
+                        <p class="ticket-text-center ticket-sub">FIRMA CONFORMIDAD CLIENTE</p>
+                    </div>
+                </div>
+                {% endif %}
+            </section>
+
+            <div class="ticket-divider-double"></div>
+
+            <!-- PIE DE TICKET -->
+            <footer class="ticket-footer">
+                <p class="ticket-text-center ticket-bold">¡Gracias por su preferencia!</p>
+                <p class="ticket-text-center ticket-sub">LuxStore POS</p>
+            </footer>
+
+            <!-- Margen de seguridad térmico para el corte de papel -->
+            <div class="ticket-tear-gap"></div>
+        </article>
+    </main>
+
+    <script>
+        function cambiarAncho(ancho) {
+            const card = document.getElementById('ticketCard');
+            const btns = document.querySelectorAll('.btn-size-toggle');
+
+            btns.forEach(b => b.classList.remove('active'));
+            if (ancho === '80') {
+                card.classList.remove('ticket-58mm');
+                card.classList.add('ticket-80mm');
+                btns[1].classList.add('active');
+            } else {
+                card.classList.remove('ticket-80mm');
+                card.classList.add('ticket-58mm');
+                btns[0].classList.add('active');
+            }
+        }
+
+        // Atajos de teclado: Escape cierra, Ctrl+P imprime
+        document.addEventListener('keydown', function(e) {
+            if (e.key === 'Escape') {
+                window.close();
+            }
+        });
+
+        // Impresión automática si fue solicitado en URL (?autoprint=1)
+        {% if autoprint %}
+        window.addEventListener('load', function() {
+            setTimeout(function() {
+                window.print();
+            }, 300);
+        });
+        {% endif %}
+    </script>
+</body>
+</html>
