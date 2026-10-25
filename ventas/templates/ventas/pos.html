@@ -27,6 +27,11 @@ Venta | LuxStore
         ultimaVentaId: null,
         mensajeCobro: '',
         mostrarConfirmacion: false,
+        mostrarModalTicket: false,
+        ticketVentaId: null,
+        ticketTotal: 0,
+        ticketMedioPago: '',
+        ticketVuelto: null,
         medioPago: 'EFECTIVO',
         montoRecibido: '',
         esFiado: false,
@@ -328,6 +333,23 @@ Venta | LuxStore
         },
 
 
+        confirmarImpresionTicket() {
+            if (!this.ticketVentaId) return;
+            this.imprimirTicket(this.ticketVentaId);
+            this.cerrarModalTicket();
+        },
+
+
+        cerrarModalTicket() {
+            this.mostrarModalTicket = false;
+            this.$nextTick(() => {
+                if (this.$refs.busqueda) {
+                    this.$refs.busqueda.focus();
+                }
+            });
+        },
+
+
         async confirmarVenta() {
 
             if (this.venta.length === 0 || this.cobrando) {
@@ -410,6 +432,13 @@ Venta | LuxStore
                 this.busqueda = '';
                 this.resultados = [];
                 this.mostrarConfirmacion = false;
+
+                // Datos para el modal de impresión de ticket
+                this.ticketVentaId = datos.venta_id;
+                this.ticketTotal = datos.total || 0;
+                this.ticketMedioPago = datos.medio_pago || this.medioPago;
+                this.ticketVuelto = (datos.vuelto !== undefined) ? datos.vuelto : null;
+                this.mostrarModalTicket = true;
 
                 this.ventaRealizada = true;
                 this.ultimaVentaId = datos.venta_id;
@@ -1261,6 +1290,90 @@ Venta | LuxStore
 
         </div>
 
+    </div>
+
+
+    <!-- =====================================================
+         MODAL DE IMPRESIÓN DE BOLETA / TICKET
+         ===================================================== -->
+    <div
+        class="lux-confirm-backdrop"
+        x-show="mostrarModalTicket"
+        x-transition.opacity
+        x-cloak
+        @click.self="cerrarModalTicket()"
+        @keydown.escape.window="if (mostrarModalTicket) cerrarModalTicket()"
+        @keydown.enter.window="if (mostrarModalTicket) { $event.preventDefault(); confirmarImpresionTicket(); }"
+    >
+        <div
+            class="lux-confirm-card lux-ticket-modal-card"
+            x-show="mostrarModalTicket"
+            x-transition
+        >
+            <div class="lux-confirm-header">
+                <div class="lux-ticket-modal-header-left">
+                    <div class="lux-ticket-success-icon">
+                        ✓
+                    </div>
+                    <div>
+                        <span class="lux-confirm-eyebrow lux-eyebrow-success">
+                            Venta registrada con éxito
+                        </span>
+                        <h2>
+                            ¿Imprimir boleta?
+                        </h2>
+                    </div>
+                </div>
+
+                <button
+                    type="button"
+                    class="lux-confirm-close"
+                    @click="cerrarModalTicket()"
+                    title="Cerrar (Esc)"
+                >
+                    ×
+                </button>
+            </div>
+
+            <div class="lux-ticket-modal-summary">
+                <div class="lux-ticket-summary-row">
+                    <span>N° Comprobante:</span>
+                    <strong x-text="'#' + ticketVentaId"></strong>
+                </div>
+                <div class="lux-ticket-summary-row">
+                    <span>Medio de pago:</span>
+                    <strong x-text="ticketMedioPago"></strong>
+                </div>
+                <div class="lux-ticket-summary-row">
+                    <span>Total venta:</span>
+                    <strong class="ticket-sum-total" x-text="moneda(ticketTotal)"></strong>
+                </div>
+                <template x-if="ticketMedioPago === 'EFECTIVO' && ticketVuelto !== null && ticketVuelto > 0">
+                    <div class="lux-ticket-summary-row ticket-vuelto-row">
+                        <span>Vuelto entregado:</span>
+                        <strong x-text="moneda(ticketVuelto)"></strong>
+                    </div>
+                </template>
+            </div>
+
+            <div class="lux-confirm-actions">
+                <button
+                    type="button"
+                    class="btn-cancel"
+                    @click="cerrarModalTicket()"
+                >
+                    Cancelar (Esc)
+                </button>
+
+                <button
+                    type="button"
+                    class="btn btn-lux btn-imprimir-ticket"
+                    @click="confirmarImpresionTicket()"
+                >
+                    🖨️ Imprimir (Enter)
+                </button>
+            </div>
+        </div>
     </div>
 
 </div>

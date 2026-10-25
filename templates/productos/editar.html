@@ -58,7 +58,12 @@
                 const resultado = await response.json();
 
                 if (!response.ok) {
-                    this.error = 'Revisa los datos ingresados.';
+                    if (resultado.errores) {
+                        const mensajes = Object.values(resultado.errores).flat();
+                        this.error = mensajes.length > 0 ? mensajes[0] : 'Revisa los datos ingresados.';
+                    } else {
+                        this.error = 'Revisa los datos ingresados.';
+                    }
                     return;
                 }
 
@@ -204,6 +209,85 @@
                         <div class="product-field">
 
                             <label
+                                for="{{ form.precio_compra.id_for_label }}"
+                                class="lux-label"
+                            >
+                                Precio de compra
+                            </label>
+
+                            <div class="input-group lux-input-group">
+
+                                <span class="input-group-text lux-input-prefix">
+                                    $
+                                </span>
+
+                                {{ form.precio_compra }}
+
+                            </div>
+
+                            <span class="lux-help">
+                                Valor al que compras este producto.
+                            </span>
+
+                            {% for error in form.precio_compra.errors %}
+                                <div class="lux-field-error">
+                                    {{ error }}
+                                </div>
+                            {% endfor %}
+
+                        </div>
+
+
+                        <div class="product-field">
+
+                            <label
+                                for="{{ form.porcentaje_ganancia.id_for_label }}"
+                                class="lux-label"
+                            >
+                                Ganancia
+                            </label>
+
+                            <div class="input-group lux-input-group">
+
+                                {{ form.porcentaje_ganancia }}
+
+                                <span class="input-group-text lux-input-prefix">
+                                    %
+                                </span>
+
+                            </div>
+
+                            {% for error in form.porcentaje_ganancia.errors %}
+                                <div class="lux-field-error">
+                                    {{ error }}
+                                </div>
+                            {% endfor %}
+
+                        </div>
+
+
+                        <div class="product-price-suggestion">
+
+                            <div>
+                                <span>
+                                    Precio sugerido
+                                </span>
+
+                                <small>
+                                    Según precio de compra y margen
+                                </small>
+                            </div>
+
+                            <strong id="precio-sugerido">
+                                —
+                            </strong>
+
+                        </div>
+
+
+                        <div class="product-field">
+
+                            <label
                                 for="{{ form.precio.id_for_label }}"
                                 class="lux-label"
                             >
@@ -219,6 +303,10 @@
                                 {{ form.precio }}
 
                             </div>
+
+                            <span class="lux-help">
+                                Precio final que se cobrará al cliente.
+                            </span>
 
                             {% for error in form.precio.errors %}
                                 <div class="lux-field-error">

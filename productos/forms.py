@@ -4,6 +4,21 @@ from .models import Producto
 
 
 class ProductoForm(forms.ModelForm):
+    porcentaje_ganancia = forms.DecimalField(
+        required=False,
+        initial=0,
+        max_digits=5,
+        decimal_places=2,
+        widget=forms.NumberInput(
+            attrs={
+                "class": "form-control lux-input",
+                "placeholder": "0",
+                "min": "0",
+                "step": "0.01",
+            }
+        ),
+    )
+
     class Meta:
         model = Producto
 
@@ -41,14 +56,6 @@ class ProductoForm(forms.ModelForm):
                     "min": "0",
                 }
             ),
-            "porcentaje_ganancia": forms.NumberInput(
-                attrs={
-                    "class": "form-control lux-input",
-                    "placeholder": "0",
-                    "min": "0",
-                    "step": "0.01",
-                }
-            ),
             "precio": forms.NumberInput(
                 attrs={
                     "class": "form-control lux-input",
@@ -76,3 +83,9 @@ class ProductoForm(forms.ModelForm):
                 }
             ),
         }
+
+    def clean_porcentaje_ganancia(self):
+        val = self.cleaned_data.get("porcentaje_ganancia")
+        if val is None or val == "":
+            return 0
+        return val
