@@ -14,12 +14,39 @@ Corte diario | LuxStore
     class="daily-cut-wrapper"
     x-data="{
         mostrarModalCierre: false,
+        mostrarModalResumenCierre: false,
         cerrandoCaja: false,
         efectivoContado: '',
         notaCierre: '',
         mensajeCierre: '',
         errorCierre: '',
         totalEfectivoSistema: {{ total_efectivo }},
+        totalTarjetaSistema: {{ total_tarjeta }},
+        totalFiadoSistema: {{ total_fiado }},
+
+        mostrarModalTicket: false,
+        ticketVentaId: null,
+        ticketIframeUrl: '',
+
+        init() {
+            window.addEventListener('message', (e) => {
+                if (e.data && e.data.accion === 'cerrarModalTicket') {
+                    this.cerrarModalTicket();
+                }
+            });
+        },
+
+        abrirModalTicket(id) {
+            if (!id) return;
+            this.ticketVentaId = id;
+            this.ticketIframeUrl = `/ventas/${id}/ticket/?autoprint=1`;
+            this.mostrarModalTicket = true;
+        },
+
+        cerrarModalTicket() {
+            this.mostrarModalTicket = false;
+            this.ticketIframeUrl = '';
+        },
 
         moneda(valor) {
             return '$' + new Intl.NumberFormat(
@@ -41,6 +68,14 @@ Corte diario | LuxStore
         cerrarModalCierre() {
             if (this.cerrandoCaja) return;
             this.mostrarModalCierre = false;
+        },
+
+        abrirModalResumenCierre() {
+            this.mostrarModalResumenCierre = true;
+        },
+
+        cerrarModalResumenCierre() {
+            this.mostrarModalResumenCierre = false;
         },
 
         diferenciaCalculada() {
@@ -108,31 +143,64 @@ Corte diario | LuxStore
         <div class="daily-date">
             {{ hoy|date:"d/m/Y" }}
         </div>
-        <button
-            type="button"
-            class="btn btn-lux btn-cierre-caja"
-            @click="abrirModalCierre()"
-        >
-            🔒 Cerrar caja
-        </button>
+        {% if caja_cerrada %}
+            <button
+                type="button"
+                class="btn btn-cierre-realizado"
+                @click="abrirModalResumenCierre()"
+                title="Ver detalle del cierre de caja efectuado"
+            >
+                ✓ Caja cerrada ({{ ultimo_cierre.cerrado_en|date:"H:i" }} hrs)
+            </button>
+        {% else %}
+            <button
+                type="button"
+                class="btn btn-lux btn-cierre-caja"
+                @click="abrirModalCierre()"
+            >
+                🔒 Cerrar caja
+            </button>
+        {% endif %}
     </div>
 
 </div>
 
 <!-- BANNER SI YA SE CERRÓ LA CAJA HOY -->
 {% if ultimo_cierre %}
-<div class="cierre-alerta-info">
-    <div class="cierre-alerta-content">
-        <span>✓ Caja cerrada hoy a las {{ ultimo_cierre.cerrado_en|date:"H:i" }} hrs.</span>
-        <span>Efectivo contado: <strong>${{ ultimo_cierre.efectivo_real }}</strong>
+<div class="cierre-alerta-card">
+    <div class="cierre-alerta-header">
+        <div class="cierre-alerta-badge">
+            ✓ JORNADA CERRADA
+        </div>
+        <div class="cierre-alerta-time">
+            Cierre registrado a las {{ ultimo_cierre.cerrado_en|date:"H:i" }} hrs
+        </div>
+    </div>
+    <div class="cierre-alerta-grid">
+        <div class="cierre-alerta-item">
+            <span>Efectivo según sistema:</span>
+            <strong x-text="moneda({{ ultimo_cierre.total_efectivo_sistema }})"></strong>
+        </div>
+        <div class="cierre-alerta-item">
+            <span>Efectivo contado en caja:</span>
+            <strong x-text="moneda({{ ultimo_cierre.efectivo_real }})"></strong>
+        </div>
+        <div class="cierre-alerta-item">
+            <span>Resultado cuadratura:</span>
             {% if ultimo_cierre.diferencia == 0 %}
-                (Cuadre exacto)
+                <strong class="cuadre-tag cuadre-exacto">✓ Cuadre exacto ($0)</strong>
             {% elif ultimo_cierre.diferencia > 0 %}
-                (Sobrante: +${{ ultimo_cierre.diferencia }})
+                <strong class="cuadre-tag cuadre-sobrante">+${{ ultimo_cierre.diferencia }} (Sobrante)</strong>
             {% else %}
-                (Faltante: -${{ ultimo_cierre.diferencia|stringformat:"+d"|slice:"1:" }})
+                <strong class="cuadre-tag cuadre-faltante">-${{ ultimo_cierre.diferencia|stringformat:"+d"|slice:"1:" }} (Faltante)</strong>
             {% endif %}
-        </span>
+        </div>
+        {% if ultimo_cierre.nota %}
+        <div class="cierre-alerta-item cierre-alerta-nota-item">
+            <span>Observación registrada:</span>
+            <em>"{{ ultimo_cierre.nota }}"</em>
+        </div>
+        {% endif %}
     </div>
 </div>
 {% endif %}
@@ -220,7 +288,7 @@ Corte diario | LuxStore
                 </h2>
 
                 <p>
-                    Movimientos registrados durante el día.
+                    Movimientos registrados durante el día. Haz clic en cualquier venta para ver su detalle.
                 </p>
             </div>
 
@@ -229,43 +297,114 @@ Corte diario | LuxStore
 
         {% if ultimas_ventas %}
 
+            <!-- Cabecera de la tabla -->
+            <div class="daily-sales-table-header">
+                <div>N° Venta</div>
+                <div>Hora</div>
+                <div>Medio de pago</div>
+                <div class="col-total-header">Total</div>
+                <div class="col-action-header">Ticket</div>
+            </div>
+
             <div class="daily-sales-list">
 
                 {% for venta in ultimas_ventas %}
 
-                    <div class="daily-sale-row">
-
-                        <div class="daily-sale-number">
-                            #{{ venta.id }}
-                        </div>
-
-
-                        <div class="daily-sale-time">
-                            {{ venta.creada_en|date:"H:i" }}
-                        </div>
-
-
-                        <div class="daily-sale-payment">
-                            <span class="badge-payment badge-{{ venta.medio_pago|lower }}">
-                                {{ venta.get_medio_pago_display }}
-                            </span>
-                        </div>
-
+                    <div
+                        class="daily-sale-item"
+                        x-data="{ expandido: false }"
+                    >
                         <div
-                            class="daily-sale-total"
-                            x-text="moneda({{ venta.total }})"
-                        ></div>
+                            class="daily-sale-row"
+                            @click="expandido = !expandido"
+                            title="Haz clic para ver u ocultar el detalle de esta venta"
+                        >
+                            <div class="daily-sale-number">
+                                <span
+                                    class="daily-sale-chevron"
+                                    :class="{ 'rotated': expandido }"
+                                >▶</span>
+                                #{{ venta.id }}
+                            </div>
 
-                        <div class="daily-sale-actions">
-                            <a
-                                href="{% url 'ventas:ticket_venta' venta.id %}"
-                                target="_blank"
-                                class="btn-ticket-icon"
-                                title="Imprimir ticket #{{ venta.id }}"
-                                onclick="window.open(this.href, '_blank', 'width=420,height=650,resizable=yes,scrollbars=yes'); return false;"
-                            >
-                                🖨️
-                            </a>
+                            <div class="daily-sale-time">
+                                {{ venta.creada_en|date:"H:i" }}
+                            </div>
+
+                            <div class="daily-sale-payment">
+                                <span class="badge-payment badge-{{ venta.medio_pago|lower }}">
+                                    {% if venta.medio_pago == "FIADO" and venta.movimientos_fiados.first %}
+                                        Fiado: {{ venta.movimientos_fiados.first.fiador.nombre }}
+                                    {% else %}
+                                        {{ venta.get_medio_pago_display }}
+                                    {% endif %}
+                                </span>
+                            </div>
+
+                            <div
+                                class="daily-sale-total"
+                                x-text="moneda({{ venta.total }})"
+                            ></div>
+
+                            <div class="daily-sale-actions">
+                                <button
+                                    type="button"
+                                    class="btn-ticket-icon"
+                                    title="Imprimir ticket #{{ venta.id }}"
+                                    @click.stop="abrirModalTicket({{ venta.id }})"
+                                >
+                                    🖨️
+                                </button>
+                            </div>
+                        </div>
+
+                        <!-- Detalle expandible de los productos vendidos -->
+                        <div
+                            class="daily-sale-drawer"
+                            x-show="expandido"
+                            x-transition
+                            x-cloak
+                        >
+                            <div class="daily-drawer-title">
+                                <span>📦 Artículos de la venta #{{ venta.id }}</span>
+                            </div>
+
+                            <table class="daily-drawer-table">
+                                <thead>
+                                    <tr>
+                                        <th class="col-drawer-cant">Cant.</th>
+                                        <th class="col-drawer-desc">Producto</th>
+                                        <th class="col-drawer-precio">P. Unitario</th>
+                                        <th class="col-drawer-subt">Subtotal</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {% for det in venta.detalles.all %}
+                                    <tr>
+                                        <td class="col-drawer-cant">{{ det.cantidad }}x</td>
+                                        <td class="col-drawer-desc">{{ det.producto.nombre }}</td>
+                                        <td class="col-drawer-precio" x-text="moneda({{ det.precio_unitario }})"></td>
+                                        <td class="col-drawer-subt" x-text="moneda({{ det.subtotal }})"></td>
+                                    </tr>
+                                    {% empty %}
+                                    <tr>
+                                        <td colspan="4" style="text-align: center; color: var(--app-muted); padding: 10px;">
+                                            Sin detalle registrado.
+                                        </td>
+                                    </tr>
+                                    {% endfor %}
+                                </tbody>
+                            </table>
+
+                            <div class="daily-drawer-footer">
+                                {% if venta.medio_pago == "EFECTIVO" and venta.monto_recibido %}
+                                    <span>Efectivo recibido: <strong x-text="moneda({{ venta.monto_recibido }})"></strong></span>
+                                    <span>Vuelto entregado: <strong x-text="moneda({{ venta.vuelto }})"></strong></span>
+                                {% elif venta.medio_pago == "FIADO" and venta.movimientos_fiados.first %}
+                                    <span>Cliente fiador: <strong>{{ venta.movimientos_fiados.first.fiador.nombre }}</strong></span>
+                                    <span>Deuda acumulada cliente: <strong x-text="moneda({{ venta.movimientos_fiados.first.fiador.saldo }})"></strong></span>
+                                {% endif %}
+                            </div>
                         </div>
 
                     </div>
@@ -330,11 +469,11 @@ Corte diario | LuxStore
                 </div>
                 <div class="cierre-summary-row">
                     <span>Tarjeta según sistema:</span>
-                    <strong>{{ total_tarjeta|default:0 }}</strong>
+                    <strong x-text="moneda(totalTarjetaSistema)"></strong>
                 </div>
                 <div class="cierre-summary-row">
                     <span>Ventas fiadas hoy:</span>
-                    <strong>{{ total_fiado|default:0 }}</strong>
+                    <strong x-text="moneda(totalFiadoSistema)"></strong>
                 </div>
             </div>
 
@@ -415,6 +554,127 @@ Corte diario | LuxStore
             </div>
         </div>
     </div>
+
+    <!-- MODAL DE VISOR DE TICKET / REIMPRESIÓN -->
+    <div
+        class="lux-confirm-backdrop"
+        x-show="mostrarModalTicket"
+        x-transition.opacity
+        x-cloak
+        @click.self="cerrarModalTicket()"
+        @keydown.escape.window="if (mostrarModalTicket) cerrarModalTicket()"
+    >
+        <div
+            class="lux-confirm-card lux-ticket-visor-card"
+            x-show="mostrarModalTicket"
+            x-transition
+        >
+            <iframe
+                x-ref="ticketIframe"
+                :src="ticketIframeUrl"
+                class="lux-ticket-visor-iframe"
+                title="Vista previa e impresión de ticket"
+            ></iframe>
+        </div>
+    </div>
+
+    <!-- MODAL DE RESUMEN DE CIERRE YA REALIZADO (SOLO LECTURA) -->
+    {% if ultimo_cierre %}
+    <div
+        class="lux-confirm-backdrop"
+        x-show="mostrarModalResumenCierre"
+        x-transition.opacity
+        x-cloak
+        @click.self="cerrarModalResumenCierre()"
+        @keydown.escape.window="cerrarModalResumenCierre()"
+    >
+        <div
+            class="lux-confirm-card"
+            x-show="mostrarModalResumenCierre"
+            x-transition
+        >
+            <div class="lux-confirm-header">
+                <div>
+                    <span class="lux-confirm-eyebrow" style="color: #059669;">
+                        Auditoría de caja
+                    </span>
+                    <h2>
+                        Cierre de caja del día
+                    </h2>
+                    <p>
+                        Registrado hoy a las {{ ultimo_cierre.cerrado_en|date:"H:i" }} hrs.
+                    </p>
+                </div>
+
+                <button
+                    type="button"
+                    class="lux-confirm-close"
+                    @click="cerrarModalResumenCierre()"
+                >
+                    ×
+                </button>
+            </div>
+
+            <!-- Resumen del sistema -->
+            <div class="cierre-modal-summary">
+                <div class="cierre-summary-row">
+                    <span>Efectivo según sistema:</span>
+                    <strong x-text="moneda({{ ultimo_cierre.total_efectivo_sistema }})"></strong>
+                </div>
+                <div class="cierre-summary-row">
+                    <span>Tarjeta según sistema:</span>
+                    <strong x-text="moneda({{ ultimo_cierre.total_tarjeta_sistema }})"></strong>
+                </div>
+                <div class="cierre-summary-row">
+                    <span>Ventas fiadas hoy:</span>
+                    <strong x-text="moneda({{ ultimo_cierre.total_fiado_sistema }})"></strong>
+                </div>
+                <div class="cierre-summary-row" style="border-top: 1px dashed var(--app-border); padding-top: 6px; margin-top: 2px;">
+                    <span>Total bruto vendido:</span>
+                    <strong x-text="moneda({{ ultimo_cierre.total_vendido }})"></strong>
+                </div>
+            </div>
+
+            <!-- Cuadratura realizada -->
+            <div class="cierre-modal-body" style="margin-top: 10px;">
+                <div class="cierre-cuadratura-box">
+                    <span class="cierre-diff-label">Efectivo contado:</span>
+                    <strong style="font-size: 15px; color: var(--app-text);" x-text="moneda({{ ultimo_cierre.efectivo_real }})"></strong>
+                </div>
+
+                <div class="cierre-cuadratura-box" style="margin-top: 8px;">
+                    <span class="cierre-diff-label">Resultado de cuadratura:</span>
+                    <span class="cierre-diff-val">
+                        {% if ultimo_cierre.diferencia == 0 %}
+                            <span class="diff-exacto">✓ Cuadre exacto ($0)</span>
+                        {% elif ultimo_cierre.diferencia > 0 %}
+                            <span class="diff-sobrante">+${{ ultimo_cierre.diferencia }} (Sobrante)</span>
+                        {% else %}
+                            <span class="diff-faltante">-${{ ultimo_cierre.diferencia|stringformat:"+d"|slice:"1:" }} (Faltante)</span>
+                        {% endif %}
+                    </span>
+                </div>
+
+                {% if ultimo_cierre.nota %}
+                <div class="cierre-modal-nota" style="margin-top: 12px; font-size: 12px; color: var(--app-muted);">
+                    <strong>Observación:</strong>
+                    <p style="margin: 4px 0 0; color: var(--app-text);">"{{ ultimo_cierre.nota }}"</p>
+                </div>
+                {% endif %}
+            </div>
+
+            <div class="lux-confirm-actions">
+                <button
+                    type="button"
+                    class="btn btn-lux"
+                    @click="cerrarModalResumenCierre()"
+                >
+                    Entendido
+                </button>
+            </div>
+        </div>
+    </div>
+    {% endif %}
 
     </div>
 

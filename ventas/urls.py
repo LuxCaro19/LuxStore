@@ -33,6 +33,12 @@ urlpatterns = [
     ),
 
     path(
+        "historial/",
+        views.historial_ventas,
+        name="historial",
+    ),
+
+    path(
         "<int:pk>/ticket/",
         views.ticket_venta,
         name="ticket_venta",

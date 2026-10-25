@@ -91,7 +91,7 @@
             <button
                 type="button"
                 class="btn-ticket-action btn-ticket-close"
-                onclick="window.close()"
+                onclick="cerrarTicket()"
             >
                 ✕ Cerrar
             </button>
@@ -253,10 +253,18 @@
             }
         }
 
+        function cerrarTicket() {
+            if (window.parent && window.parent !== window) {
+                window.parent.postMessage({ accion: 'cerrarModalTicket' }, '*');
+            } else {
+                window.close();
+            }
+        }
+
         // Atajos de teclado: Escape cierra, Ctrl+P imprime
         document.addEventListener('keydown', function(e) {
             if (e.key === 'Escape') {
-                window.close();
+                cerrarTicket();
             }
         });
 

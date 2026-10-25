@@ -1,0 +1,751 @@
+{% extends "base.html" %}
+{% load static %}
+{% load ventas_extras %}
+
+{% block title %}
+Historial de ventas | LuxStore
+{% endblock %}
+
+{% block content %}
+
+<script>
+function crearDatePicker(campo) {
+    return {
+        abierto: false,
+        mes: new Date().getMonth(),
+        año: new Date().getFullYear(),
+        mesesNombres: ['Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio', 'Julio', 'Agosto', 'Septiembre', 'Octubre', 'Noviembre', 'Diciembre'],
+        diasSemana: ['Lu', 'Ma', 'Mi', 'Ju', 'Vi', 'Sá', 'Do'],
+
+        init() {
+            const val = this[campo];
+            if (val) {
+                const p = val.split('-');
+                if (p.length === 3) {
+                    this.año = parseInt(p[0]);
+                    this.mes = parseInt(p[1]) - 1;
+                }
+            }
+            this.$watch(campo, (nuevoVal) => {
+                if (nuevoVal) {
+                    const p = nuevoVal.split('-');
+                    if (p.length === 3) {
+                        this.año = parseInt(p[0]);
+                        this.mes = parseInt(p[1]) - 1;
+                    }
+                }
+            });
+        },
+
+        get celdasMes() {
+            const primerDia = new Date(this.año, this.mes, 1).getDay();
+            const offset = primerDia === 0 ? 6 : primerDia - 1;
+            const totalDias = new Date(this.año, this.mes + 1, 0).getDate();
+            const celdas = [];
+            for (let i = 0; i < offset; i++) {
+                celdas.push({ tipo: 'vacio' });
+            }
+            const hoy = new Date();
+            const hoyIso = `${hoy.getFullYear()}-${String(hoy.getMonth() + 1).padStart(2, '0')}-${String(hoy.getDate()).padStart(2, '0')}`;
+            const actualVal = this[campo];
+
+            for (let d = 1; d <= totalDias; d++) {
+                const mStr = String(this.mes + 1).padStart(2, '0');
+                const dStr = String(d).padStart(2, '0');
+                const iso = `${this.año}-${mStr}-${dStr}`;
+                celdas.push({
+                    tipo: 'dia',
+                    numero: d,
+                    iso: iso,
+                    esHoy: iso === hoyIso,
+                    esSeleccionado: iso === actualVal
+                });
+            }
+            return celdas;
+        },
+
+        mesAnterior() {
+            if (this.mes === 0) {
+                this.mes = 11;
+                this.año--;
+            } else {
+                this.mes--;
+            }
+        },
+
+        mesSiguiente() {
+            if (this.mes === 11) {
+                this.mes = 0;
+                this.año++;
+            } else {
+                this.mes++;
+            }
+        },
+
+        seleccionarDia(iso) {
+            this[campo] = iso;
+            this.abierto = false;
+            this.alCambiarFechaManual();
+        },
+
+        seleccionarHoy() {
+            const hoy = new Date();
+            const hoyIso = `${hoy.getFullYear()}-${String(hoy.getMonth() + 1).padStart(2, '0')}-${String(hoy.getDate()).padStart(2, '0')}`;
+            this.año = hoy.getFullYear();
+            this.mes = hoy.getMonth();
+            this.seleccionarDia(hoyIso);
+        },
+
+        borrar() {
+            this[campo] = '';
+            this.abierto = false;
+            this.alCambiarFechaManual();
+        }
+    };
+}
+
+function crearCustomSelect() {
+    return {
+        abierto: false,
+        opciones: [
+            { valor: '', texto: 'Todos los medios', icono: '🪙' },
+            { valor: 'EFECTIVO', texto: 'Efectivo', icono: '💵' },
+            { valor: 'TARJETA', texto: 'Tarjeta', icono: '💳' },
+            { valor: 'TRANSFERENCIA', texto: 'Transferencia', icono: '🔄' },
+            { valor: 'FIADO', texto: 'Fiado', icono: '👤' }
+        ],
+        get opcionActual() {
+            return this.opciones.find(o => o.valor === this.medioPago) || this.opciones[0];
+        },
+        seleccionar(valor) {
+            this.medioPago = valor;
+            this.abierto = false;
+        }
+    };
+}
+</script>
+
+<div
+    class="history-page-wrapper"
+    x-data="{
+        mostrarModalTicket: false,
+        ticketVentaId: null,
+        ticketIframeUrl: '',
+        periodoActivo: '{{ filtros.periodo|default:'todo' }}',
+        desde: '{{ filtros.desde|default:'' }}',
+        hasta: '{{ filtros.hasta|default:'' }}',
+        medioPago: '{{ filtros.medio_pago|default:'' }}',
+
+        init() {
+            window.addEventListener('message', (e) => {
+                if (e.data && e.data.accion === 'cerrarModalTicket') {
+                    this.cerrarModalTicket();
+                }
+            });
+        },
+
+        abrirModalTicket(id) {
+            if (!id) return;
+            this.ticketVentaId = id;
+            this.ticketIframeUrl = `/ventas/${id}/ticket/?autoprint=1`;
+            this.mostrarModalTicket = true;
+        },
+
+        cerrarModalTicket() {
+            this.mostrarModalTicket = false;
+            this.ticketIframeUrl = '';
+        },
+
+        moneda(valor) {
+            return '$' + new Intl.NumberFormat('es-CL').format(valor);
+        },
+
+        formatearFechaISO(date) {
+            const y = date.getFullYear();
+            const m = String(date.getMonth() + 1).padStart(2, '0');
+            const d = String(date.getDate()).padStart(2, '0');
+            return `${y}-${m}-${d}`;
+        },
+
+        formatoVisual(iso) {
+            if (!iso) return '';
+            const parts = iso.split('-');
+            if (parts.length === 3) {
+                return `${parts[2]}/${parts[1]}/${parts[0]}`;
+            }
+            return iso;
+        },
+
+        seleccionarPeriodo(tipo) {
+            this.periodoActivo = tipo;
+            const hoy = new Date();
+
+            if (tipo === 'hoy') {
+                const strHoy = this.formatearFechaISO(hoy);
+                this.desde = strHoy;
+                this.hasta = strHoy;
+            } else if (tipo === 'ayer') {
+                const ayer = new Date(hoy);
+                ayer.setDate(hoy.getDate() - 1);
+                const strAyer = this.formatearFechaISO(ayer);
+                this.desde = strAyer;
+                this.hasta = strAyer;
+            } else if (tipo === 'semana') {
+                const diaSemana = hoy.getDay();
+                const diffLunes = diaSemana === 0 ? -6 : 1 - diaSemana;
+                const lunes = new Date(hoy);
+                lunes.setDate(hoy.getDate() + diffLunes);
+                this.desde = this.formatearFechaISO(lunes);
+                this.hasta = this.formatearFechaISO(hoy);
+            } else if (tipo === 'mes') {
+                const primerDiaMes = new Date(hoy.getFullYear(), hoy.getMonth(), 1);
+                this.desde = this.formatearFechaISO(primerDiaMes);
+                this.hasta = this.formatearFechaISO(hoy);
+            } else if (tipo === 'todo') {
+                this.desde = '';
+                this.hasta = '';
+            }
+
+            this.$nextTick(() => {
+                document.getElementById('form-historial-filtros').submit();
+            });
+        },
+
+        alCambiarFechaManual() {
+            this.periodoActivo = 'custom';
+        }
+    }"
+>
+
+    <!-- ENCABEZADO DE PÁGINA -->
+    <div class="page-header">
+        <div>
+            <h1 class="page-title">
+                Historial de ventas
+            </h1>
+            <p class="page-subtitle">
+                Consulta, filtra y audita todas las transacciones históricas del sistema.
+            </p>
+        </div>
+    </div>
+
+    <!-- TARJETA DE FILTROS -->
+    <section class="history-filters-card">
+        <!-- Atajos de período rápido -->
+        <div class="history-period-pills">
+            <span class="pills-label">Período:</span>
+            <button
+                type="button"
+                class="history-pill"
+                :class="{ 'active': periodoActivo === 'todo' }"
+                @click="seleccionarPeriodo('todo')"
+            >
+                Todo el historial
+            </button>
+            <button
+                type="button"
+                class="history-pill"
+                :class="{ 'active': periodoActivo === 'hoy' }"
+                @click="seleccionarPeriodo('hoy')"
+            >
+                Hoy
+            </button>
+            <button
+                type="button"
+                class="history-pill"
+                :class="{ 'active': periodoActivo === 'ayer' }"
+                @click="seleccionarPeriodo('ayer')"
+            >
+                Ayer
+            </button>
+            <button
+                type="button"
+                class="history-pill"
+                :class="{ 'active': periodoActivo === 'semana' }"
+                @click="seleccionarPeriodo('semana')"
+            >
+                Esta semana
+            </button>
+            <button
+                type="button"
+                class="history-pill"
+                :class="{ 'active': periodoActivo === 'mes' }"
+                @click="seleccionarPeriodo('mes')"
+            >
+                Este mes
+            </button>
+        </div>
+
+        <!-- Formulario de filtros detallados -->
+        <form
+            id="form-historial-filtros"
+            method="get"
+            action="{% url 'ventas:historial' %}"
+            class="history-form-grid"
+        >
+            <input type="hidden" name="periodo" :value="periodoActivo">
+
+            <!-- SELECTOR DESDE -->
+            <div
+                class="history-field"
+                x-data="crearDatePicker('desde')"
+                @click.outside="abierto = false"
+            >
+                <label class="lux-label">Desde</label>
+                <input type="hidden" name="desde" :value="desde">
+
+                <div
+                    class="lux-date-wrap"
+                    :class="{ 'focus': abierto }"
+                    @click="abierto = !abierto"
+                >
+                    <span class="lux-date-icon">📅</span>
+                    <span
+                        class="lux-date-display-text"
+                        :class="{ 'is-placeholder': !desde }"
+                        x-text="formatoVisual(desde) || 'DD/MM/AAAA'"
+                    ></span>
+                    <button
+                        type="button"
+                        class="lux-date-clear"
+                        x-show="desde"
+                        x-cloak
+                        @click.stop="borrar()"
+                        title="Limpiar fecha inicial"
+                    >✕</button>
+                </div>
+
+                <!-- Calendario flotante Lux -->
+                <div
+                    class="lux-calendar-popover"
+                    x-show="abierto"
+                    x-transition
+                    x-cloak
+                >
+                    <div class="lux-calendar-header">
+                        <button type="button" class="lux-cal-nav-btn" @click.stop="mesAnterior()">‹</button>
+                        <div class="lux-cal-title">
+                            <span x-text="mesesNombres[mes]"></span>
+                            <span x-text="año" class="lux-cal-year"></span>
+                        </div>
+                        <button type="button" class="lux-cal-nav-btn" @click.stop="mesSiguiente()">›</button>
+                    </div>
+
+                    <div class="lux-cal-weekdays">
+                        <template x-for="dia in diasSemana" :key="dia">
+                            <span x-text="dia"></span>
+                        </template>
+                    </div>
+
+                    <div class="lux-cal-grid">
+                        <template x-for="(c, idx) in celdasMes" :key="idx">
+                            <div>
+                                <template x-if="c.tipo === 'vacio'">
+                                    <div class="lux-cal-cell empty"></div>
+                                </template>
+                                <template x-if="c.tipo === 'dia'">
+                                    <button
+                                        type="button"
+                                        class="lux-cal-cell day"
+                                        :class="{
+                                            'selected': c.esSeleccionado,
+                                            'today': c.esHoy && !c.esSeleccionado
+                                        }"
+                                        @click.stop="seleccionarDia(c.iso)"
+                                        x-text="c.numero"
+                                    ></button>
+                                </template>
+                            </div>
+                        </template>
+                    </div>
+
+                    <div class="lux-cal-footer">
+                        <button type="button" class="lux-cal-action-btn" @click.stop="borrar()">Borrar</button>
+                        <button type="button" class="lux-cal-action-btn highlight" @click.stop="seleccionarHoy()">Hoy</button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- SELECTOR HASTA -->
+            <div
+                class="history-field"
+                x-data="crearDatePicker('hasta')"
+                @click.outside="abierto = false"
+            >
+                <label class="lux-label">Hasta</label>
+                <input type="hidden" name="hasta" :value="hasta">
+
+                <div
+                    class="lux-date-wrap"
+                    :class="{ 'focus': abierto }"
+                    @click="abierto = !abierto"
+                >
+                    <span class="lux-date-icon">📅</span>
+                    <span
+                        class="lux-date-display-text"
+                        :class="{ 'is-placeholder': !hasta }"
+                        x-text="formatoVisual(hasta) || 'DD/MM/AAAA'"
+                    ></span>
+                    <button
+                        type="button"
+                        class="lux-date-clear"
+                        x-show="hasta"
+                        x-cloak
+                        @click.stop="borrar()"
+                        title="Limpiar fecha final"
+                    >✕</button>
+                </div>
+
+                <!-- Calendario flotante Lux -->
+                <div
+                    class="lux-calendar-popover"
+                    x-show="abierto"
+                    x-transition
+                    x-cloak
+                >
+                    <div class="lux-calendar-header">
+                        <button type="button" class="lux-cal-nav-btn" @click.stop="mesAnterior()">‹</button>
+                        <div class="lux-cal-title">
+                            <span x-text="mesesNombres[mes]"></span>
+                            <span x-text="año" class="lux-cal-year"></span>
+                        </div>
+                        <button type="button" class="lux-cal-nav-btn" @click.stop="mesSiguiente()">›</button>
+                    </div>
+
+                    <div class="lux-cal-weekdays">
+                        <template x-for="dia in diasSemana" :key="dia">
+                            <span x-text="dia"></span>
+                        </template>
+                    </div>
+
+                    <div class="lux-cal-grid">
+                        <template x-for="(c, idx) in celdasMes" :key="idx">
+                            <div>
+                                <template x-if="c.tipo === 'vacio'">
+                                    <div class="lux-cal-cell empty"></div>
+                                </template>
+                                <template x-if="c.tipo === 'dia'">
+                                    <button
+                                        type="button"
+                                        class="lux-cal-cell day"
+                                        :class="{
+                                            'selected': c.esSeleccionado,
+                                            'today': c.esHoy && !c.esSeleccionado
+                                        }"
+                                        @click.stop="seleccionarDia(c.iso)"
+                                        x-text="c.numero"
+                                    ></button>
+                                </template>
+                            </div>
+                        </template>
+                    </div>
+
+                    <div class="lux-cal-footer">
+                        <button type="button" class="lux-cal-action-btn" @click.stop="borrar()">Borrar</button>
+                        <button type="button" class="lux-cal-action-btn highlight" @click.stop="seleccionarHoy()">Hoy</button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- SELECTOR MEDIO DE PAGO (CUSTOM LUX SELECT) -->
+            <div
+                class="history-field history-field-select"
+                x-data="crearCustomSelect()"
+                @click.outside="abierto = false"
+            >
+                <label class="lux-label">Medio de pago</label>
+                <input type="hidden" name="medio_pago" :value="medioPago">
+
+                <div
+                    class="lux-custom-select-trigger"
+                    :class="{ 'active': abierto }"
+                    @click="abierto = !abierto"
+                >
+                    <div class="lux-select-val">
+                        <span class="lux-select-icon" x-text="opcionActual.icono"></span>
+                        <span class="lux-select-text" x-text="opcionActual.texto"></span>
+                    </div>
+                    <span class="lux-select-chevron" :class="{ 'rotated': abierto }">▾</span>
+                </div>
+
+                <div
+                    class="lux-custom-select-dropdown"
+                    x-show="abierto"
+                    x-transition
+                    x-cloak
+                >
+                    <template x-for="opc in opciones" :key="opc.valor">
+                        <div
+                            class="lux-select-option"
+                            :class="{ 'selected': medioPago === opc.valor }"
+                            @click="seleccionar(opc.valor)"
+                        >
+                            <div class="lux-option-left">
+                                <span class="lux-option-icon" x-text="opc.icono"></span>
+                                <span class="lux-option-label" x-text="opc.texto"></span>
+                            </div>
+                            <span class="lux-option-check" x-show="medioPago === opc.valor">✓</span>
+                        </div>
+                    </template>
+                </div>
+            </div>
+
+            <div class="history-field history-field-search">
+                <label for="filtro-q" class="lux-label">Buscar</label>
+                <input
+                    id="filtro-q"
+                    type="text"
+                    name="q"
+                    value="{{ filtros.q }}"
+                    placeholder="N° Ticket (#32), fiador o producto..."
+                    class="form-control lux-input"
+                    autocomplete="off"
+                >
+            </div>
+
+            <div class="history-actions">
+                <button type="submit" class="btn btn-lux btn-history-filter">
+                    🔍 Filtrar
+                </button>
+                <a href="{% url 'ventas:historial' %}" class="btn-cancel btn-history-clean" title="Limpiar todos los filtros">
+                    Limpiar
+                </a>
+            </div>
+        </form>
+    </section>
+
+    <!-- TARJETAS DE MÉTRICAS DEL PERÍODO -->
+    <section class="daily-summary history-summary-grid">
+        <div class="daily-summary-card daily-summary-main">
+            <span class="daily-summary-label">
+                Total recaudado en el período
+            </span>
+            <strong class="daily-summary-total">
+                {{ total_recaudado|peso }}
+            </strong>
+            <span class="daily-summary-help">
+                Suma de ventas completadas
+            </span>
+        </div>
+
+        <div class="daily-summary-card">
+            <span class="daily-summary-label">
+                Cantidad de ventas
+            </span>
+            <strong class="daily-summary-value">
+                {{ cantidad_ventas }}
+            </strong>
+            <span class="daily-summary-help">
+                Transacciones registradas
+            </span>
+        </div>
+
+        <div class="daily-summary-card">
+            <span class="daily-summary-label">
+                Ticket promedio
+            </span>
+            <strong class="daily-summary-value">
+                {{ ticket_promedio|peso }}
+            </strong>
+            <span class="daily-summary-help">
+                Promedio por cliente
+            </span>
+        </div>
+    </section>
+
+    <!-- LISTADO DE VENTAS HISTÓRICAS -->
+    <section class="daily-sales-card">
+        <div class="daily-sales-header">
+            <div>
+                <h2>
+                    Listado de ventas
+                </h2>
+                <p>
+                    Mostrando {{ page_obj.paginator.count }} venta{{ page_obj.paginator.count|pluralize:"s" }} encontrada{{ page_obj.paginator.count|pluralize:"s" }}. Haz clic en cualquier fila para ver el detalle de los productos.
+                </p>
+            </div>
+        </div>
+
+        {% if page_obj %}
+            <!-- Cabecera de la tabla histórica -->
+            <div class="daily-sales-table-header history-table-header">
+                <div>N° Venta</div>
+                <div>Fecha y Hora</div>
+                <div>Medio de pago</div>
+                <div class="col-total-header">Total</div>
+                <div class="col-action-header">Ticket</div>
+            </div>
+
+            <div class="daily-sales-list">
+                {% for venta in page_obj %}
+                    <div
+                        class="daily-sale-item"
+                        x-data="{ expandido: false }"
+                    >
+                        <div
+                            class="daily-sale-row history-sale-row"
+                            @click="expandido = !expandido"
+                            title="Haz clic para ver u ocultar el detalle de esta venta"
+                        >
+                            <div class="daily-sale-number">
+                                <span
+                                    class="daily-sale-chevron"
+                                    :class="{ 'rotated': expandido }"
+                                >▶</span>
+                                #{{ venta.id }}
+                            </div>
+
+                            <div class="daily-sale-time">
+                                {{ venta.creada_en|date:"d/m/Y H:i" }}
+                            </div>
+
+                            <div class="daily-sale-payment">
+                                <span class="badge-payment badge-{{ venta.medio_pago|lower }}">
+                                    {% if venta.medio_pago == "FIADO" and venta.movimientos_fiados.first %}
+                                        Fiado: {{ venta.movimientos_fiados.first.fiador.nombre }}
+                                    {% else %}
+                                        {{ venta.get_medio_pago_display }}
+                                    {% endif %}
+                                </span>
+                            </div>
+
+                            <div class="daily-sale-total">
+                                {{ venta.total|peso }}
+                            </div>
+
+                            <div class="daily-sale-actions">
+                                <button
+                                    type="button"
+                                    class="btn-ticket-icon"
+                                    title="Imprimir ticket térmico #{{ venta.id }}"
+                                    @click.stop="abrirModalTicket({{ venta.id }})"
+                                >
+                                    🖨️
+                                </button>
+                            </div>
+                        </div>
+
+                        <!-- Detalle expandible de los productos vendidos -->
+                        <div
+                            class="daily-sale-drawer"
+                            x-show="expandido"
+                            x-transition
+                            x-cloak
+                        >
+                            <div class="daily-drawer-title">
+                                <span>📦 Artículos de la venta #{{ venta.id }} ({{ venta.creada_en|date:"d/m/Y H:i" }})</span>
+                            </div>
+
+                            <table class="daily-drawer-table">
+                                <thead>
+                                    <tr>
+                                        <th class="col-drawer-cant">Cant.</th>
+                                        <th class="col-drawer-desc">Producto</th>
+                                        <th class="col-drawer-precio">P. Unitario</th>
+                                        <th class="col-drawer-subt">Subtotal</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {% for det in venta.detalles.all %}
+                                    <tr>
+                                        <td class="col-drawer-cant">{{ det.cantidad }}x</td>
+                                        <td class="col-drawer-desc">{{ det.producto.nombre }}</td>
+                                        <td class="col-drawer-precio">{{ det.precio_unitario|peso }}</td>
+                                        <td class="col-drawer-subt">{{ det.subtotal|peso }}</td>
+                                    </tr>
+                                    {% empty %}
+                                    <tr>
+                                        <td colspan="4" style="text-align: center; color: var(--app-muted); padding: 10px;">
+                                            Sin detalle registrado.
+                                        </td>
+                                    </tr>
+                                    {% endfor %}
+                                </tbody>
+                            </table>
+
+                            <div class="daily-drawer-footer">
+                                {% if venta.medio_pago == "EFECTIVO" and venta.monto_recibido %}
+                                    <span>Efectivo recibido: <strong>{{ venta.monto_recibido|peso }}</strong></span>
+                                    <span>Vuelto entregado: <strong>{{ venta.vuelto|peso }}</strong></span>
+                                {% elif venta.medio_pago == "FIADO" and venta.movimientos_fiados.first %}
+                                    <span>Cliente fiador: <strong>{{ venta.movimientos_fiados.first.fiador.nombre }}</strong></span>
+                                    <span>Deuda acumulada cliente: <strong>{{ venta.movimientos_fiados.first.fiador.saldo|peso }}</strong></span>
+                                {% endif %}
+                            </div>
+                        </div>
+
+                    </div>
+                {% endfor %}
+            </div>
+
+            <!-- CONTROLES DE PAGINACIÓN -->
+            {% if page_obj.paginator.num_pages > 1 %}
+            <div class="history-pagination-wrapper">
+                <div class="history-pagination-info">
+                    Página {{ page_obj.number }} de {{ page_obj.paginator.num_pages }}
+                </div>
+
+                <div class="history-pagination-nav">
+                    {% if page_obj.has_previous %}
+                        <a
+                            href="?page={{ page_obj.previous_page_number }}&q={{ filtros.q }}&periodo={{ filtros.periodo }}&desde={{ filtros.desde }}&hasta={{ filtros.hasta }}&medio_pago={{ filtros.medio_pago }}"
+                            class="pagination-btn"
+                        >
+                            ← Anterior
+                        </a>
+                    {% else %}
+                        <span class="pagination-btn disabled">← Anterior</span>
+                    {% endif %}
+
+                    {% if page_obj.has_next %}
+                        <a
+                            href="?page={{ page_obj.next_page_number }}&q={{ filtros.q }}&periodo={{ filtros.periodo }}&desde={{ filtros.desde }}&hasta={{ filtros.hasta }}&medio_pago={{ filtros.medio_pago }}"
+                            class="pagination-btn"
+                        >
+                            Siguiente →
+                        </a>
+                    {% else %}
+                        <span class="pagination-btn disabled">Siguiente →</span>
+                    {% endif %}
+                </div>
+            </div>
+            {% endif %}
+
+        {% else %}
+            <div class="daily-sales-empty">
+                <strong>
+                    No se encontraron ventas para los filtros seleccionados
+                </strong>
+                <span>
+                    Intenta cambiar las fechas, el medio de pago o el término de búsqueda.
+                </span>
+            </div>
+        {% endif %}
+    </section>
+
+    <!-- MODAL DE VISOR DE TICKET / REIMPRESIÓN EN PANTALLA -->
+    <div
+        class="lux-confirm-backdrop"
+        x-show="mostrarModalTicket"
+        x-transition.opacity
+        x-cloak
+        @click.self="cerrarModalTicket()"
+        @keydown.escape.window="if (mostrarModalTicket) cerrarModalTicket()"
+    >
+        <div
+            class="lux-confirm-card lux-ticket-visor-card"
+            x-show="mostrarModalTicket"
+            x-transition
+        >
+            <iframe
+                x-ref="ticketIframe"
+                :src="ticketIframeUrl"
+                class="lux-ticket-visor-iframe"
+                title="Vista previa e impresión de ticket"
+            ></iframe>
+        </div>
+    </div>
+
+</div>
+
+{% endblock %}

@@ -28,6 +28,8 @@ Venta | LuxStore
         mensajeCobro: '',
         mostrarConfirmacion: false,
         mostrarModalTicket: false,
+        modalTicketModo: 'pregunta',
+        ticketIframeUrl: '',
         ticketVentaId: null,
         ticketTotal: 0,
         ticketMedioPago: '',
@@ -54,6 +56,11 @@ Venta | LuxStore
                     this.fiadores = [];
                 }
             }
+            window.addEventListener('message', (e) => {
+                if (e.data && e.data.accion === 'cerrarModalTicket') {
+                    this.cerrarModalTicket();
+                }
+            });
         },
 
         abrirConfirmacion() {
@@ -325,23 +332,31 @@ Venta | LuxStore
         },
 
 
-        imprimirTicket(id) {
-            const ventaId = id || this.ultimaVentaId;
+        abrirVisorTicket(id) {
+            const ventaId = id || this.ultimaVentaId || this.ticketVentaId;
             if (!ventaId) return;
-            const url = `/ventas/${ventaId}/ticket/?autoprint=1`;
-            window.open(url, '_blank', 'width=420,height=650,resizable=yes,scrollbars=yes');
+            this.ticketVentaId = ventaId;
+            this.ticketIframeUrl = `/ventas/${ventaId}/ticket/?autoprint=1`;
+            this.modalTicketModo = 'visor';
+            this.mostrarModalTicket = true;
+        },
+
+
+        imprimirTicket(id) {
+            this.abrirVisorTicket(id);
         },
 
 
         confirmarImpresionTicket() {
             if (!this.ticketVentaId) return;
-            this.imprimirTicket(this.ticketVentaId);
-            this.cerrarModalTicket();
+            this.abrirVisorTicket(this.ticketVentaId);
         },
 
 
         cerrarModalTicket() {
             this.mostrarModalTicket = false;
+            this.ticketIframeUrl = '';
+            this.modalTicketModo = 'pregunta';
             this.$nextTick(() => {
                 if (this.$refs.busqueda) {
                     this.$refs.busqueda.focus();
@@ -438,6 +453,8 @@ Venta | LuxStore
                 this.ticketTotal = datos.total || 0;
                 this.ticketMedioPago = datos.medio_pago || this.medioPago;
                 this.ticketVuelto = (datos.vuelto !== undefined) ? datos.vuelto : null;
+                this.modalTicketModo = 'pregunta';
+                this.ticketIframeUrl = '';
                 this.mostrarModalTicket = true;
 
                 this.ventaRealizada = true;
@@ -1303,11 +1320,12 @@ Venta | LuxStore
         x-cloak
         @click.self="cerrarModalTicket()"
         @keydown.escape.window="if (mostrarModalTicket) cerrarModalTicket()"
-        @keydown.enter.window="if (mostrarModalTicket) { $event.preventDefault(); confirmarImpresionTicket(); }"
+        @keydown.enter.window="if (mostrarModalTicket && modalTicketModo === 'pregunta') { $event.preventDefault(); confirmarImpresionTicket(); }"
     >
+        <!-- PASO 1: PREGUNTA RÁPIDA "¿IMPRIMIR BOLETA?" -->
         <div
             class="lux-confirm-card lux-ticket-modal-card"
-            x-show="mostrarModalTicket"
+            x-show="modalTicketModo === 'pregunta'"
             x-transition
         >
             <div class="lux-confirm-header">
@@ -1373,6 +1391,20 @@ Venta | LuxStore
                     🖨️ Imprimir (Enter)
                 </button>
             </div>
+        </div>
+
+        <!-- PASO 2: VISOR DEL TICKET EN TARJETA MODAL (SIN ABRIR PÁGINA APARTE) -->
+        <div
+            class="lux-confirm-card lux-ticket-visor-card"
+            x-show="modalTicketModo === 'visor'"
+            x-transition
+        >
+            <iframe
+                x-ref="ticketIframe"
+                :src="ticketIframeUrl"
+                class="lux-ticket-visor-iframe"
+                title="Vista previa e impresión de ticket"
+            ></iframe>
         </div>
     </div>
 

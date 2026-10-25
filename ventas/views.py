@@ -1,5 +1,7 @@
 import os
 import json
+from datetime import timedelta
+from django.core.paginator import Paginator
 from django.db import transaction
 from django.db.models import Q, Sum
 from django.http import JsonResponse
@@ -7,6 +9,7 @@ from django.shortcuts import render, get_object_or_404
 from productos.models import Producto
 from .models import Venta, DetalleVenta, CierreCaja
 from django.utils import timezone
+from django.views.decorators.clickjacking import xframe_options_sameorigin
 from fiadores.models import Fiador, MovimientoFiado
 
 
@@ -361,10 +364,13 @@ def corte_diario(request):
         or 0
     )
 
-    ultimas_ventas = ventas[:25]
+    ultimas_ventas = ventas.prefetch_related(
+        "detalles__producto",
+        "movimientos_fiados__fiador",
+    )[:50]
 
     # Verificar si ya existe un cierre de caja registrado hoy
-    ultimo_cierre = CierreCaja.objects.filter(fecha=hoy).first()
+    ultimo_cierre = CierreCaja.objects.filter(fecha=hoy).order_by("-cerrado_en").first()
 
     return render(
         request,
@@ -379,6 +385,7 @@ def corte_diario(request):
             "total_fiado": total_fiado,
             "ultimas_ventas": ultimas_ventas,
             "ultimo_cierre": ultimo_cierre,
+            "caja_cerrada": ultimo_cierre is not None,
         },
     )
 
@@ -407,6 +414,12 @@ def cerrar_caja(request):
 
     nota = str(datos.get("nota", "")).strip()
     hoy = timezone.localdate()
+
+    if CierreCaja.objects.filter(fecha=hoy).exists():
+        return JsonResponse(
+            {"ok": False, "mensaje": "La caja de hoy ya fue cerrada previamente."},
+            status=400,
+        )
 
     ventas = Venta.objects.filter(
         estado=Venta.Estado.COMPLETADA,
@@ -467,6 +480,109 @@ def cerrar_caja(request):
     )
 
 
+def historial_ventas(request):
+    """
+    Módulo de historial de ventas con filtros de fecha, medio de pago y búsqueda,
+    además de KPIs dinámicos y visor de boletas térmicas integrado.
+    """
+    hoy = timezone.localdate()
+
+    q = request.GET.get("q", "").strip()
+    periodo = request.GET.get("periodo", "").strip().lower()
+    desde_str = request.GET.get("desde", "").strip()
+    hasta_str = request.GET.get("hasta", "").strip()
+    medio_pago = request.GET.get("medio_pago", "").strip().upper()
+
+    ventas_qs = Venta.objects.filter(estado=Venta.Estado.COMPLETADA)
+
+    # Filtro de búsqueda por ID (#32) o nombre de cliente fiador / producto
+    if q:
+        q_limpio = q.lstrip("#").strip()
+        if q_limpio.isdigit():
+            ventas_qs = ventas_qs.filter(id=int(q_limpio))
+        else:
+            ventas_qs = ventas_qs.filter(
+                Q(movimientos_fiados__fiador__nombre__icontains=q)
+                | Q(detalles__producto__nombre__icontains=q)
+            ).distinct()
+
+    # Filtros de períodos rápidos
+    if periodo == "hoy":
+        ventas_qs = ventas_qs.filter(creada_en__date=hoy)
+        desde_str = hoy.strftime("%Y-%m-%d")
+        hasta_str = hoy.strftime("%Y-%m-%d")
+    elif periodo == "ayer":
+        ayer = hoy - timedelta(days=1)
+        ventas_qs = ventas_qs.filter(creada_en__date=ayer)
+        desde_str = ayer.strftime("%Y-%m-%d")
+        hasta_str = ayer.strftime("%Y-%m-%d")
+    elif periodo == "semana":
+        inicio_semana = hoy - timedelta(days=hoy.weekday())
+        ventas_qs = ventas_qs.filter(creada_en__date__gte=inicio_semana, creada_en__date__lte=hoy)
+        desde_str = inicio_semana.strftime("%Y-%m-%d")
+        hasta_str = hoy.strftime("%Y-%m-%d")
+    elif periodo == "mes":
+        inicio_mes = hoy.replace(day=1)
+        ventas_qs = ventas_qs.filter(creada_en__date__gte=inicio_mes, creada_en__date__lte=hoy)
+        desde_str = inicio_mes.strftime("%Y-%m-%d")
+        hasta_str = hoy.strftime("%Y-%m-%d")
+    elif periodo == "todo":
+        desde_str = ""
+        hasta_str = ""
+    else:
+        # Filtro de rango de fechas personalizado
+        if desde_str:
+            try:
+                desde_fecha = timezone.datetime.strptime(desde_str, "%Y-%m-%d").date()
+                ventas_qs = ventas_qs.filter(creada_en__date__gte=desde_fecha)
+            except ValueError:
+                pass
+        if hasta_str:
+            try:
+                hasta_fecha = timezone.datetime.strptime(hasta_str, "%Y-%m-%d").date()
+                ventas_qs = ventas_qs.filter(creada_en__date__lte=hasta_fecha)
+            except ValueError:
+                pass
+
+    # Filtro por medio de pago
+    if medio_pago in dict(Venta.MedioPago.choices):
+        ventas_qs = ventas_qs.filter(medio_pago=medio_pago)
+
+    # Métricas agregadas del queryset filtrado
+    total_recaudado = ventas_qs.aggregate(total=Sum("total"))["total"] or 0
+    cantidad_ventas = ventas_qs.count()
+    ticket_promedio = int(total_recaudado / cantidad_ventas) if cantidad_ventas > 0 else 0
+
+    # Orden y prefetch para la visualización paginada
+    ventas_ordenadas = ventas_qs.prefetch_related(
+        "detalles__producto",
+        "movimientos_fiados__fiador",
+    ).order_by("-creada_en")
+
+    # Paginación
+    paginator = Paginator(ventas_ordenadas, 25)
+    page_number = request.GET.get("page")
+    page_obj = paginator.get_page(page_number)
+
+    context = {
+        "page_obj": page_obj,
+        "total_recaudado": total_recaudado,
+        "cantidad_ventas": cantidad_ventas,
+        "ticket_promedio": ticket_promedio,
+        "filtros": {
+            "q": q,
+            "periodo": periodo,
+            "desde": desde_str,
+            "hasta": hasta_str,
+            "medio_pago": medio_pago,
+        },
+        "medios_pago": Venta.MedioPago.choices,
+    }
+
+    return render(request, "ventas/historial.html", context)
+
+
+@xframe_options_sameorigin
 def ticket_venta(request, pk):
     """
     Vista optimizada para impresión de ticket térmico (58mm / 80mm).
