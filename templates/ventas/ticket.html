@@ -108,7 +108,10 @@
             <header class="ticket-header">
                 <h1 class="ticket-negocio-nombre">{{ negocio_nombre }}</h1>
                 {% if negocio_rut %}
-                    <p class="ticket-text-center ticket-sub">{{ negocio_rut }}</p>
+                    <p class="ticket-text-center ticket-sub">RUT: {{ negocio_rut }}</p>
+                {% endif %}
+                {% if negocio_giro %}
+                    <p class="ticket-text-center ticket-sub">{{ negocio_giro }}</p>
                 {% endif %}
                 {% if negocio_direccion %}
                     <p class="ticket-text-center ticket-sub">{{ negocio_direccion }}</p>
@@ -227,7 +230,11 @@
 
             <!-- PIE DE TICKET -->
             <footer class="ticket-footer">
-                <p class="ticket-text-center ticket-bold">¡Gracias por su preferencia!</p>
+                {% if mensaje_pie %}
+                    <p class="ticket-text-center ticket-bold" style="white-space: pre-line;">{{ mensaje_pie }}</p>
+                {% else %}
+                    <p class="ticket-text-center ticket-bold">¡Gracias por su preferencia!</p>
+                {% endif %}
                 <p class="ticket-text-center ticket-sub">LuxStore POS</p>
             </footer>
 

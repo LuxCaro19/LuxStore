@@ -6,56 +6,7 @@ Nuevo Producto | LuxStore
 
 {% block content %}
 
-<div
-    class="product-page"
-    x-data="{
-        guardando: false,
-        guardado: false,
-        error: '',
-
-        async guardar() {
-            if (this.guardando) {
-                return;
-            }
-
-            this.guardando = true;
-            this.guardado = false;
-            this.error = '';
-
-            const form = this.$refs.form;
-            const datos = new FormData(form);
-
-            try {
-                const response = await fetch(window.location.href, {
-                    method: 'POST',
-                    body: datos,
-                    credentials: 'same-origin',
-                    headers: {
-                        'X-Requested-With': 'XMLHttpRequest'
-                    }
-                });
-
-                const resultado = await response.json();
-
-                if (!response.ok) {
-                    this.error = 'Revisa los datos ingresados.';
-                    return;
-                }
-
-                this.guardado = true;
-
-                setTimeout(() => {
-                    this.guardado = false;
-                }, 1800);
-
-            } catch (e) {
-                this.error = 'No se pudieron guardar los cambios.';
-            } finally {
-                this.guardando = false;
-            }
-        }
-    }"
->
+<div class="product-page" x-data="crearProductoForm()">
 
     <div class="product-page-top">
         <a
@@ -367,7 +318,7 @@ Nuevo Producto | LuxStore
                         class="save-success"
                         style="display: none;"
                     >
-                        Guardado ✓
+                        ¡Producto creado con éxito!
                     </span>
 
                     <span
@@ -395,14 +346,14 @@ Nuevo Producto | LuxStore
                 >
 
                     <span x-show="!guardando">
-                        Guardar cambios
+                        Crear producto
                     </span>
 
                     <span
                         x-show="guardando"
                         style="display: none;"
                     >
-                        Guardando...
+                        Creando producto...
                     </span>
 
                 </button>
@@ -414,5 +365,63 @@ Nuevo Producto | LuxStore
     </form>
 
 </div>
+
+
+<script>
+function crearProductoForm() {
+    return {
+        guardando: false,
+        guardado: false,
+        error: '',
+
+        async guardar() {
+            if (this.guardando) {
+                return;
+            }
+
+            this.guardando = true;
+            this.guardado = false;
+            this.error = '';
+
+            const form = this.$refs.form;
+            const datos = new FormData(form);
+
+            try {
+                const response = await fetch(window.location.href, {
+                    method: 'POST',
+                    body: datos,
+                    credentials: 'same-origin',
+                    headers: {
+                        'X-Requested-With': 'XMLHttpRequest'
+                    }
+                });
+
+                const resultado = await response.json();
+
+                if (!response.ok || !resultado.ok) {
+                    if (resultado.errores) {
+                        const mensajes = Object.values(resultado.errores).flat();
+                        this.error = mensajes.length ? mensajes[0] : 'Revisa los datos ingresados.';
+                    } else {
+                        this.error = resultado.mensaje || 'Revisa los datos ingresados.';
+                    }
+                    return;
+                }
+
+                this.guardado = true;
+
+                setTimeout(() => {
+                    window.location.href = resultado.redirect_url || '/productos/';
+                }, 500);
+
+            } catch (e) {
+                this.error = 'Ocurrió un error inesperado al guardar.';
+            } finally {
+                this.guardando = false;
+            }
+        }
+    };
+}
+</script>
 
 {% endblock %}

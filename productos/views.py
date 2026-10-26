@@ -1,6 +1,7 @@
 from django.db.models import F, Q
 from django.http import JsonResponse
 from django.shortcuts import get_object_or_404, redirect, render
+from django.urls import reverse
 from usuarios.decorators import admin_required
 
 from .forms import ProductoForm
@@ -35,9 +36,36 @@ def crear_producto(request):
         form = ProductoForm(request.POST)
 
         if form.is_valid():
-            form.save()
+            producto = form.save()
+
+            if request.headers.get("X-Requested-With") == "XMLHttpRequest":
+                return JsonResponse(
+                    {
+                        "ok": True,
+                        "mensaje": "Producto creado con éxito",
+                        "redirect_url": reverse("productos:lista"),
+                        "producto": {
+                            "id": producto.id,
+                            "nombre": producto.nombre,
+                        },
+                    }
+                )
 
             return redirect("productos:lista")
+
+        if request.headers.get("X-Requested-With") == "XMLHttpRequest":
+            errores = {
+                campo: [error["message"] for error in lista]
+                for campo, lista in form.errors.get_json_data().items()
+            }
+
+            return JsonResponse(
+                {
+                    "ok": False,
+                    "errores": errores,
+                },
+                status=400,
+            )
 
     else:
         form = ProductoForm()

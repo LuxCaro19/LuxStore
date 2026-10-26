@@ -37,4 +37,9 @@ urlpatterns = [
         "usuarios/",
         include("usuarios.urls"),
     ),
+
+    path(
+        "configuracion/",
+        include("configuracion.urls"),
+    ),
 ]

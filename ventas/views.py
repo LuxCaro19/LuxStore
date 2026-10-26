@@ -608,12 +608,18 @@ def ticket_venta(request, pk):
         if movimiento:
             fiador = movimiento.fiador
 
-    negocio_nombre = os.getenv("TICKET_NEGOCIO_NOMBRE", "LUXSTORE")
-    negocio_direccion = os.getenv("TICKET_NEGOCIO_DIRECCION", "")
-    negocio_telefono = os.getenv("TICKET_NEGOCIO_TELEFONO", "")
-    negocio_rut = os.getenv("TICKET_NEGOCIO_RUT", "")
+    from configuracion.models import ConfiguracionNegocio
+    cfg = ConfiguracionNegocio.obtener_configuracion()
 
-    ancho_mm = request.GET.get("ancho", os.getenv("TICKET_ANCHO_MM", "58")).strip()
+    negocio_nombre = cfg.nombre_negocio or "LUXSTORE"
+    negocio_direccion = cfg.direccion or ""
+    negocio_telefono = cfg.telefono or ""
+    negocio_rut = cfg.rut or ""
+    negocio_giro = cfg.giro or ""
+    mensaje_pie = cfg.mensaje_pie_ticket or ""
+
+    ancho_predeterminado = cfg.ancho_papel_predeterminado or "58"
+    ancho_mm = request.GET.get("ancho", ancho_predeterminado).strip()
     if ancho_mm not in ("58", "80"):
         ancho_mm = "58"
 
@@ -630,6 +636,8 @@ def ticket_venta(request, pk):
         "negocio_direccion": negocio_direccion,
         "negocio_telefono": negocio_telefono,
         "negocio_rut": negocio_rut,
+        "negocio_giro": negocio_giro,
+        "mensaje_pie": mensaje_pie,
         "ancho_mm": ancho_mm,
         "autoprint": autoprint,
         "fecha_hora": timezone.localtime(venta.creada_en),

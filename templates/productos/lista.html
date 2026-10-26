@@ -1,4 +1,5 @@
 {% extends "base.html" %}
+{% load ventas_extras %}
 
 {% block title %}
 Productos | LuxStore
@@ -22,21 +23,31 @@ Productos | LuxStore
         href="{% url 'productos:crear' %}"
         class="btn btn-lux"
     >
-        + Nuevo producto
+        <svg class="btn-svg-plus" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+            <line x1="12" y1="5" x2="12" y2="19"></line>
+            <line x1="5" y1="12" x2="19" y2="12"></line>
+        </svg>
+        <span>Nuevo producto</span>
     </a>
 
 </div>
 
 
-<div class="products-search">
+<div class="products-search-wrap">
 
-    <input
-        type="search"
-        id="product-search"
-        class="search-box"
-        placeholder="Buscar por nombre o código de barras..."
-        autocomplete="off"
-    >
+    <div class="products-search-box">
+        <svg class="products-search-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <circle cx="11" cy="11" r="8"></circle>
+            <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
+        </svg>
+        <input
+            type="search"
+            id="product-search"
+            class="products-search-input"
+            placeholder="Buscar por nombre o código de barras..."
+            autocomplete="off"
+        >
+    </div>
 
 </div>
 
@@ -62,8 +73,12 @@ Productos | LuxStore
 
                     <div class="product-card-top">
 
-                        <div class="product-card-image">
-                            P
+                        <div class="product-card-avatar">
+                            <svg class="product-avatar-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+                                <path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"></path>
+                                <polyline points="3.27 6.96 12 12.01 20.73 6.96"></polyline>
+                                <line x1="12" y1="22.08" x2="12" y2="12"></line>
+                            </svg>
                         </div>
 
 
@@ -75,6 +90,12 @@ Productos | LuxStore
                                     Inactivo
                                 </span>
 
+                            {% elif producto.stock_actual == 0 %}
+
+                                <span class="status-badge status-danger">
+                                    Agotado
+                                </span>
+
                             {% elif producto.stock_actual <= producto.stock_minimo %}
 
                                 <span class="status-badge status-warning">
@@ -84,7 +105,7 @@ Productos | LuxStore
                             {% else %}
 
                                 <span class="status-badge status-active">
-                                    Activo
+                                    Disponible
                                 </span>
 
                             {% endif %}
@@ -96,20 +117,28 @@ Productos | LuxStore
 
                     <div class="product-card-body">
 
-                        <h2 class="product-card-name">
+                        <h2 class="product-card-name" title="{{ producto.nombre }}">
                             {{ producto.nombre }}
                         </h2>
 
 
-                        <div class="product-card-code">
+                        <div class="product-barcode-chip">
 
                             {% if producto.codigo_barras %}
 
-                                {{ producto.codigo_barras }}
+                                <svg class="barcode-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                    <line x1="3" y1="5" x2="3" y2="19"></line>
+                                    <line x1="6" y1="5" x2="6" y2="19"></line>
+                                    <line x1="10" y1="5" x2="10" y2="19"></line>
+                                    <line x1="14" y1="5" x2="14" y2="19"></line>
+                                    <line x1="17" y1="5" x2="17" y2="19"></line>
+                                    <line x1="21" y1="5" x2="21" y2="19"></line>
+                                </svg>
+                                <code>{{ producto.codigo_barras }}</code>
 
                             {% else %}
 
-                                Sin código de barras
+                                <span class="no-barcode">Sin código de barras</span>
 
                             {% endif %}
 
@@ -118,27 +147,28 @@ Productos | LuxStore
 
                         <div class="product-card-data">
 
-                            <div>
+                            <div class="product-data-box price-box">
 
-                                <span>
+                                <span class="data-label">
                                     Precio
                                 </span>
 
-                                <strong>
-                                    ${{ producto.precio }}
+                                <strong class="data-value price-value">
+                                    {{ producto.precio|peso }}
                                 </strong>
 
                             </div>
 
 
-                            <div>
+                            <div class="product-data-box stock-box {% if producto.stock_actual == 0 %}is-out{% elif producto.stock_actual <= producto.stock_minimo %}is-low{% endif %}">
 
-                                <span>
+                                <span class="data-label">
                                     Stock
                                 </span>
 
-                                <strong>
+                                <strong class="data-value stock-value">
                                     {{ producto.stock_actual }}
+                                    <small class="stock-unit">unid.</small>
                                 </strong>
 
                             </div>
@@ -152,11 +182,12 @@ Productos | LuxStore
 
                         <div class="product-card-action">
 
-                            Ver producto
+                            <span>Ver y editar producto</span>
 
-                            <span>
-                                →
-                            </span>
+                            <svg class="action-arrow-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                <line x1="5" y1="12" x2="19" y2="12"></line>
+                                <polyline points="12 5 19 12 12 19"></polyline>
+                            </svg>
 
                         </div>
 
@@ -175,12 +206,17 @@ Productos | LuxStore
         id="products-live-empty"
         hidden
     >
+        <svg class="empty-icon-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+            <circle cx="11" cy="11" r="8"></circle>
+            <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
+        </svg>
+
         <strong>
             No encontramos productos
         </strong>
 
         <span>
-            Intenta con otro nombre o código de barras.
+            Intenta con otro término o código de barras.
         </span>
     </div>
 
@@ -188,13 +224,23 @@ Productos | LuxStore
 
     <div class="products-empty">
 
+        <svg class="empty-icon-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"></path>
+            <polyline points="3.27 6.96 12 12.01 20.73 6.96"></polyline>
+            <line x1="12" y1="22.08" x2="12" y2="12"></line>
+        </svg>
+
         <strong>
             No encontramos productos
         </strong>
 
         <span>
-            Intenta con otro nombre o código de barras.
+            Comienza agregando tu primer producto al inventario.
         </span>
+
+        <a href="{% url 'productos:crear' %}" class="btn btn-lux" style="margin-top: 14px;">
+            + Nuevo producto
+        </a>
 
     </div>
 

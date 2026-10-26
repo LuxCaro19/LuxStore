@@ -83,17 +83,34 @@
                         <strong>{{ request.user.first_name|default:request.user.username }}</strong>
                         <span class="user-dropdown-role">
                             {% if request.user.is_superuser or request.user.perfil.rol == "ADMIN" %}
-                                🛡️ Administrador
+                                <span class="badge-role-admin">
+                                    <svg class="role-badge-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                        <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"></path>
+                                    </svg>
+                                    Administrador
+                                </span>
                             {% else %}
-                                🛒 Visita (Caja)
+                                <span class="badge-role-visita">
+                                    <svg class="role-badge-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                        <rect x="2" y="3" width="20" height="14" rx="2"></rect>
+                                        <line x1="8" y1="21" x2="16" y2="21"></line>
+                                        <line x1="12" y1="17" x2="12" y2="21"></line>
+                                    </svg>
+                                    Visita (Caja)
+                                </span>
                             {% endif %}
                         </span>
                     </div>
 
                     <div class="user-dropdown-divider"></div>
 
-                    <a href="{% url 'logout' %}" class="user-dropdown-danger">
-                        🚪 Cerrar sesión
+                    <a href="{% url 'logout' %}" class="user-dropdown-item user-dropdown-danger">
+                        <svg class="user-dropdown-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                            <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"></path>
+                            <polyline points="16 17 21 12 16 7"></polyline>
+                            <line x1="21" y1="12" x2="9" y2="12"></line>
+                        </svg>
+                        <span>Cerrar sesión</span>
                     </a>
                 </div>
             </div>
@@ -193,7 +210,10 @@
                         Usuarios
                     </a>
 
-                    <a href="#" class="sidebar-link disabled" title="Próximamente">
+                    <a
+                        href="{% url 'configuracion:index' %}"
+                        class="sidebar-link"
+                    >
                         Configuración
                     </a>
                 {% endif %}
