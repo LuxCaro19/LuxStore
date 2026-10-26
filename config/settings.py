@@ -27,7 +27,7 @@ SECRET_KEY = 'django-insecure-0gej=fblryp@kn$*k48y*)%5zus%rxvhh-=zl-$t&ysve313@4
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = True
 
-ALLOWED_HOSTS = []
+ALLOWED_HOSTS = ['*']
 
 
 # Application definition
@@ -42,6 +42,7 @@ INSTALLED_APPS = [
     'productos',
     'ventas',
     'fiadores',
+    'usuarios',
 ]
 
 MIDDLEWARE = [
@@ -139,3 +140,8 @@ MAILERS = {
         'BACKEND': 'django.core.mail.backends.console.EmailBackend',
     },
 }
+
+# Autenticacion
+LOGIN_URL = 'usuarios:login'
+LOGIN_REDIRECT_URL = 'ventas:pos'
+LOGOUT_REDIRECT_URL = 'usuarios:login'

@@ -58,10 +58,10 @@
                     @click="abierto = !abierto"
                     @keydown.escape.window="abierto = false"
                 >
-                    <span class="user-name">Admin</span>
+                    <span class="user-name">{{ request.user.first_name|default:request.user.username|default:"Usuario" }}</span>
 
                     <span class="user-avatar">
-                        A
+                        {{ request.user.username|first|upper|default:"U" }}
                     </span>
 
                     <span
@@ -79,22 +79,22 @@
                     class="user-dropdown"
                     style="display: none;"
                 >
-                    <button type="button">
-                        Mi cuenta
-                    </button>
-
-                    <button type="button">
-                        Cambiar contraseña
-                    </button>
+                    <div class="user-dropdown-header">
+                        <strong>{{ request.user.first_name|default:request.user.username }}</strong>
+                        <span class="user-dropdown-role">
+                            {% if request.user.is_superuser or request.user.perfil.rol == "ADMIN" %}
+                                🛡️ Administrador
+                            {% else %}
+                                🛒 Visita (Caja)
+                            {% endif %}
+                        </span>
+                    </div>
 
                     <div class="user-dropdown-divider"></div>
 
-                    <button
-                        type="button"
-                        class="user-dropdown-danger"
-                    >
-                        Cerrar sesión
-                    </button>
+                    <a href="{% url 'logout' %}" class="user-dropdown-danger">
+                        🚪 Cerrar sesión
+                    </a>
                 </div>
             </div>
 
@@ -141,32 +141,12 @@
 
             <nav class="side-menu-nav">
 
+                <!-- DISPONIBLE PARA TODOS (VISITA Y ADMIN) -->
                 <a
                     href="{% url 'ventas:pos' %}"
                     class="sidebar-link"
                 >
-                    Venta
-                </a>
-
-                <a
-                    href="{% url 'productos:lista' %}"
-                    class="sidebar-link"
-                >
-                    Productos
-                </a>
-
-                <a
-                    href="{% url 'productos:inventario' %}"
-                    class="sidebar-link"
-                >
-                    Inventario
-                </a>
-
-                <a
-                    href="{% url 'fiadores:lista' %}"
-                    class="sidebar-link"
-                >
-                    Fiadores
+                    Venta (POS)
                 </a>
 
                 <a
@@ -176,20 +156,47 @@
                     Corte diario
                 </a>
 
-                <a
-                    href="{% url 'ventas:historial' %}"
-                    class="sidebar-link"
-                >
-                    Historial de ventas
-                </a>
+                <!-- EXCLUSIVO PARA ADMINISTRADOR -->
+                {% if request.user.is_superuser or request.user.perfil.rol == "ADMIN" %}
+                    <a
+                        href="{% url 'productos:lista' %}"
+                        class="sidebar-link"
+                    >
+                        Productos
+                    </a>
 
-                <a href="#">
-                    Usuarios
-                </a>
+                    <a
+                        href="{% url 'productos:inventario' %}"
+                        class="sidebar-link"
+                    >
+                        Inventario
+                    </a>
 
-                <a href="#">
-                    Configuración
-                </a>
+                    <a
+                        href="{% url 'fiadores:lista' %}"
+                        class="sidebar-link"
+                    >
+                        Fiadores
+                    </a>
+
+                    <a
+                        href="{% url 'ventas:historial' %}"
+                        class="sidebar-link"
+                    >
+                        Historial de ventas
+                    </a>
+
+                    <a
+                        href="{% url 'usuarios:lista' %}"
+                        class="sidebar-link"
+                    >
+                        Usuarios
+                    </a>
+
+                    <a href="#" class="sidebar-link disabled" title="Próximamente">
+                        Configuración
+                    </a>
+                {% endif %}
 
             </nav>
 
@@ -198,6 +205,17 @@
 
         <!-- Contenido -->
         <main class="app-content">
+
+            {% if messages %}
+                <div class="lux-app-messages">
+                    {% for message in messages %}
+                        <div class="alert {% if message.tags == 'error' %}alert-danger{% else %}alert-{{ message.tags }}{% endif %} alert-dismissible fade show lux-alert" role="alert">
+                            {{ message }}
+                            <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+                        </div>
+                    {% endfor %}
+                </div>
+            {% endif %}
 
             {% block content %}
             {% endblock %}

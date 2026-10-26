@@ -1,0 +1,148 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Iniciar sesión | LuxStore</title>
+    <link rel="stylesheet" href="{% static 'vendor/bootstrap/css/bootstrap.min.css' %}">
+    <link rel="stylesheet" href="{% static 'css/app.css' %}">
+    <script defer src="{% static 'vendor/alpine/alpine.min.js' %}"></script>
+</head>
+<body class="login-body">
+
+    <div class="login-wrapper">
+
+        <div class="login-card">
+
+            <!-- LOGO / ENCABEZADO -->
+            <div class="login-header">
+                <div class="login-brand-icon">
+                    <svg class="login-brand-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+                        <path d="M6 3h12l4 6-10 12L2 9z"></path>
+                        <path d="M11 3L8 9l4 12 4-12-3-6"></path>
+                        <path d="M2 9h20"></path>
+                    </svg>
+                </div>
+                <h1 class="login-title">LuxStore</h1>
+                <p class="login-subtitle">Punto de Venta y Gestión Comercial</p>
+            </div>
+
+            <!-- MENSAJES DJANGO -->
+            {% if messages %}
+                <div class="login-messages">
+                    {% for message in messages %}
+                        <div class="login-alert {% if message.tags == 'error' %}alert-danger{% else %}alert-{{ message.tags }}{% endif %}">
+                            <svg class="login-alert-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                {% if message.tags == 'error' %}
+                                    <circle cx="12" cy="12" r="10"></circle>
+                                    <line x1="12" y1="8" x2="12" y2="12"></line>
+                                    <line x1="12" y1="16" x2="12.01" y2="16"></line>
+                                {% else %}
+                                    <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"></path>
+                                    <polyline points="22 4 12 14.01 9 11.01"></polyline>
+                                {% endif %}
+                            </svg>
+                            <span>{{ message }}</span>
+                        </div>
+                    {% endfor %}
+                </div>
+            {% endif %}
+
+            <!-- FORMULARIO DE ACCESO -->
+            <form method="post" action="{% url 'usuarios:login' %}{% if request.GET.next %}?next={{ request.GET.next }}{% endif %}" class="login-form">
+                {% csrf_token %}
+
+                {% if form.non_field_errors %}
+                    <div class="login-alert alert-danger">
+                        <svg class="login-alert-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                            <circle cx="12" cy="12" r="10"></circle>
+                            <line x1="12" y1="8" x2="12" y2="12"></line>
+                            <line x1="12" y1="16" x2="12.01" y2="16"></line>
+                        </svg>
+                        <div>
+                            {% for err in form.non_field_errors %}
+                                <div>{{ err }}</div>
+                            {% endfor %}
+                        </div>
+                    </div>
+                {% endif %}
+
+                <!-- CAMPO USUARIO -->
+                <div class="login-field">
+                    <label for="id_username" class="lux-label">Usuario</label>
+                    <div class="login-input-wrap">
+                        <span class="login-input-icon">
+                            <svg class="login-field-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+                                <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path>
+                                <circle cx="12" cy="7" r="4"></circle>
+                            </svg>
+                        </span>
+                        {{ form.username }}
+                    </div>
+                    {% if form.username.errors %}
+                        <div class="login-field-error">{{ form.username.errors.0 }}</div>
+                    {% endif %}
+                </div>
+
+                <!-- CAMPO CONTRASEÑA -->
+                <div class="login-field" x-data="{ verPass: false }">
+                    <label for="id_password" class="lux-label">Contraseña</label>
+                    <div class="login-input-wrap">
+                        <span class="login-input-icon">
+                            <svg class="login-field-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+                                <rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect>
+                                <path d="M7 11V7a5 5 0 0 1 10 0v4"></path>
+                            </svg>
+                        </span>
+                        <input
+                            id="id_password"
+                            :type="verPass ? 'text' : 'password'"
+                            name="password"
+                            class="form-control lux-input"
+                            placeholder="••••••••"
+                            autocomplete="current-password"
+                            required
+                        >
+                        <button
+                            type="button"
+                            class="login-password-toggle"
+                            @click="verPass = !verPass"
+                            title="Ver u ocultar contraseña"
+                            tabindex="-1"
+                        >
+                            <!-- Icono ojo abierto -->
+                            <svg x-show="!verPass" class="login-eye-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+                                <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path>
+                                <circle cx="12" cy="12" r="3"></circle>
+                            </svg>
+                            <!-- Icono ojo cerrado / tachado -->
+                            <svg x-show="verPass" class="login-eye-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" x-cloak>
+                                <path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24"></path>
+                                <line x1="1" y1="1" x2="23" y2="23"></line>
+                            </svg>
+                        </button>
+                    </div>
+                    {% if form.password.errors %}
+                        <div class="login-field-error">{{ form.password.errors.0 }}</div>
+                    {% endif %}
+                </div>
+
+                <!-- BOTÓN DE ENTRADA -->
+                <div class="login-actions">
+                    <button type="submit" class="btn btn-lux btn-login-submit">
+                        Iniciar sesión
+                    </button>
+                </div>
+            </form>
+
+            <div class="login-footer">
+                <span>TheLuxCodes &bull; Sistema POS v2.0</span>
+            </div>
+
+        </div>
+
+    </div>
+
+</body>
+</html>

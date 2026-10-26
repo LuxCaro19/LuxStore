@@ -5,11 +5,14 @@ from django.db.models import Q
 from django.http import JsonResponse
 from django.shortcuts import get_object_or_404, redirect, render
 from django.utils import timezone
+from django.contrib.auth.decorators import login_required
+from usuarios.decorators import admin_required
 
 from .forms import FiadorForm
 from .models import Fiador, MovimientoFiado
 
 
+@admin_required
 def lista_fiadores(request):
     busqueda = request.GET.get("q", "").strip()
 
@@ -30,6 +33,7 @@ def lista_fiadores(request):
     )
 
 
+@admin_required
 def crear_fiador(request):
 
     if request.method == "POST":
@@ -59,6 +63,7 @@ def crear_fiador(request):
         },
     )
 
+@admin_required
 def detalle_fiador(request, pk):
     fiador = get_object_or_404(
         Fiador,
@@ -81,6 +86,7 @@ def detalle_fiador(request, pk):
     )
 
 
+@admin_required
 def registrar_abono(request, pk):
 
     if request.method != "POST":
@@ -203,6 +209,7 @@ def registrar_abono(request, pk):
     )
 
 
+@login_required
 def crear_fiador_rapido(request):
     """
     Crea un fiador desde el modal de cobro del POS mediante fetch (JSON).

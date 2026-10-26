@@ -1,18 +1,13 @@
 from django.db.models import F, Q
-from .forms import ProductoForm
-from .models import Producto
 from django.http import JsonResponse
 from django.shortcuts import get_object_or_404, redirect, render
-
-
-from django.db.models import F, Q
-from django.http import JsonResponse
-from django.shortcuts import get_object_or_404, redirect, render
+from usuarios.decorators import admin_required
 
 from .forms import ProductoForm
 from .models import Producto
 
 
+@admin_required
 def lista_productos(request):
     busqueda = request.GET.get("q", "").strip()
 
@@ -34,6 +29,7 @@ def lista_productos(request):
     )
 
 
+@admin_required
 def crear_producto(request):
     if request.method == "POST":
         form = ProductoForm(request.POST)
@@ -55,6 +51,7 @@ def crear_producto(request):
     )
 
 
+@admin_required
 def editar_producto(request, pk):
     producto = get_object_or_404(Producto, pk=pk)
 
@@ -119,6 +116,7 @@ def editar_producto(request, pk):
     )
 
 
+@admin_required
 def inventario(request):
     busqueda = request.GET.get("q", "").strip()
 

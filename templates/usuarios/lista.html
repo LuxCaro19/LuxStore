@@ -1,0 +1,151 @@
+{% extends "base.html" %}
+{% load static %}
+
+{% block title %}
+Gestión de usuarios | LuxStore
+{% endblock %}
+
+{% block content %}
+
+<div class="users-page-wrapper">
+
+    <!-- ENCABEZADO DE PÁGINA -->
+    <div class="page-header">
+        <div>
+            <h1 class="page-title">
+                Gestión de usuarios
+            </h1>
+            <p class="page-subtitle">
+                Control de acceso, roles y credenciales del personal de la tienda.
+            </p>
+        </div>
+
+        <div>
+            <a href="{% url 'usuarios:crear' %}" class="btn btn-lux btn-user-add">
+                + Nuevo usuario
+            </a>
+        </div>
+    </div>
+
+    <!-- TARJETA CON LISTADO DE USUARIOS -->
+    <section class="users-card">
+
+        <div class="users-card-header">
+            <div>
+                <h2>Usuarios del sistema</h2>
+                <p>Personal registrado con acceso a la plataforma.</p>
+            </div>
+            <div class="users-count-badge">
+                Total: <strong>{{ usuarios.count }}</strong>
+            </div>
+        </div>
+
+        <div class="table-responsive">
+            <table class="users-table">
+                <thead>
+                    <tr>
+                        <th>Usuario</th>
+                        <th>Nombre / Descripción</th>
+                        <th>Rol</th>
+                        <th>Estado</th>
+                        <th>Último acceso</th>
+                        <th class="text-end">Acciones</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for u in usuarios %}
+                        <tr>
+                            <td>
+                                <div class="user-cell-name">
+                                    <span class="user-avatar-badge">
+                                        {{ u.username|first|upper }}
+                                    </span>
+                                    <strong>{{ u.username }}</strong>
+                                    {% if u == request.user %}
+                                        <span class="user-tag-current">Tú</span>
+                                    {% endif %}
+                                </div>
+                            </td>
+
+                            <td>
+                                {{ u.first_name|default:"—" }}
+                            </td>
+
+                            <td>
+                                {% if u.is_superuser or u.perfil.rol == "ADMIN" %}
+                                    <span class="badge-role badge-role-admin">
+                                        🛡️ Administrador
+                                    </span>
+                                {% else %}
+                                    <span class="badge-role badge-role-visita">
+                                        🛒 Visita (Caja)
+                                    </span>
+                                {% endif %}
+                            </td>
+
+                            <td>
+                                {% if u.is_active %}
+                                    <span class="badge-status badge-status-active">
+                                        ✓ Activo
+                                    </span>
+                                {% else %}
+                                    <span class="badge-status badge-status-inactive">
+                                        ✕ Desactivado
+                                    </span>
+                                {% endif %}
+                            </td>
+
+                            <td class="user-cell-meta">
+                                {% if u.last_login %}
+                                    {{ u.last_login|date:"d/m/Y H:i" }}
+                                {% else %}
+                                    <span class="text-muted">Nunca</span>
+                                {% endif %}
+                            </td>
+
+                            <td class="text-end">
+                                <div class="users-action-btns">
+                                    <a
+                                        href="{% url 'usuarios:editar' u.pk %}"
+                                        class="btn-action-edit"
+                                        title="Editar datos y contraseña"
+                                    >
+                                        ✏️ Editar
+                                    </a>
+
+                                    {% if u != request.user %}
+                                        <form
+                                            method="post"
+                                            action="{% url 'usuarios:eliminar' u.pk %}"
+                                            style="display: inline;"
+                                            onsubmit="return confirm('¿Estás seguro de eliminar al usuario {{ u.username }}? Esta acción no se puede deshacer.');"
+                                        >
+                                            {% csrf_token %}
+                                            <button
+                                                type="submit"
+                                                class="btn-action-delete"
+                                                title="Eliminar usuario"
+                                            >
+                                                🗑️
+                                            </button>
+                                        </form>
+                                    {% endif %}
+                                </div>
+                            </td>
+                        </tr>
+                    {% empty %}
+                        <tr>
+                            <td colspan="6" class="text-center py-4 text-muted">
+                                No hay otros usuarios registrados en el sistema.
+                            </td>
+                        </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+
+    </section>
+
+</div>
+
+{% endblock %}

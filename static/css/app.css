@@ -5486,6 +5486,734 @@ body {
     font-size: 12px;
 }
 
+/* =========================================================
+   LOGIN SCREEN (LUXSTORE THEME)
+   ========================================================= */
+
+.login-body {
+    background: radial-gradient(circle at 50% 20%, #1e333d 0%, #0d171c 100%);
+    min-height: 100vh;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin: 0;
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+    color: #f1f5f9;
+}
+
+.login-wrapper {
+    width: 100%;
+    max-width: 420px;
+    padding: 24px 16px;
+    box-sizing: border-box;
+}
+
+.login-card {
+    background: #ffffff;
+    border-radius: 18px;
+    padding: 36px 30px 28px;
+    box-shadow: 0 25px 60px -15px rgba(0, 0, 0, 0.45), 0 0 0 1px rgba(255, 255, 255, 0.08);
+    color: var(--app-text);
+}
+
+.login-header {
+    text-align: center;
+    margin-bottom: 24px;
+}
+
+.login-brand-icon {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 52px;
+    height: 52px;
+    background: #edf4f7;
+    border-radius: 14px;
+    color: var(--app-primary);
+    margin-bottom: 12px;
+    border: 1px solid #dbe6ec;
+    box-shadow: 0 2px 8px rgba(53, 93, 111, 0.1);
+}
+
+.login-brand-svg {
+    width: 26px;
+    height: 26px;
+}
+
+.login-title {
+    font-size: 22px;
+    font-weight: 700;
+    color: #1e293b;
+    margin: 0 0 4px;
+    letter-spacing: -0.01em;
+}
+
+.login-subtitle {
+    font-size: 13px;
+    color: var(--app-muted);
+    margin: 0;
+}
+
+.login-messages {
+    margin-bottom: 18px;
+}
+
+.login-alert {
+    font-size: 13px;
+    font-weight: 500;
+    border-radius: 10px;
+    padding: 10px 14px;
+    margin-bottom: 10px;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+.login-alert.alert-info {
+    background: #f0f9ff;
+    color: #0369a1;
+    border: 1px solid #bae6fd;
+}
+
+.login-alert.alert-danger {
+    background: #fef2f2;
+    color: #b91c1c;
+    border: 1px solid #fecaca;
+}
+
+.login-alert.alert-success {
+    background: #f0fdf4;
+    color: #15803d;
+    border: 1px solid #bbf7d0;
+}
+
+.login-alert-icon {
+    width: 18px;
+    height: 18px;
+    flex-shrink: 0;
+}
+
+.login-form {
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+}
+
+.login-field {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+}
+
+.login-field .lux-label {
+    font-size: 12px;
+    font-weight: 600;
+    color: #475569;
+}
+
+.login-input-wrap {
+    position: relative;
+    display: flex;
+    align-items: center;
+}
+
+.login-input-icon {
+    position: absolute;
+    left: 12px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    pointer-events: none;
+    user-select: none;
+    color: #94a3b8;
+    transition: color 0.15s ease;
+}
+
+.login-field-svg {
+    width: 17px;
+    height: 17px;
+}
+
+.login-input-wrap:focus-within .login-input-icon {
+    color: var(--app-primary);
+}
+
+.login-input-wrap .lux-input {
+    padding-left: 38px !important;
+    padding-right: 38px !important;
+    height: 44px;
+    font-size: 13px;
+    font-weight: 500;
+    border: 1px solid var(--app-border);
+    border-radius: 9px;
+    transition: all 0.2s ease;
+}
+
+.login-input-wrap .lux-input:focus {
+    border-color: var(--app-primary);
+    box-shadow: 0 0 0 3px rgba(53, 93, 111, 0.15);
+}
+
+.login-password-toggle {
+    position: absolute;
+    right: 10px;
+    background: none;
+    border: none;
+    color: #94a3b8;
+    cursor: pointer;
+    padding: 6px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 6px;
+    transition: color 0.15s ease, background 0.15s ease;
+}
+
+.login-password-toggle:hover {
+    color: #334155;
+    background: #f1f5f9;
+}
+
+.login-eye-svg {
+    width: 17px;
+    height: 17px;
+}
+
+.login-field-error {
+    font-size: 12px;
+    color: #ef4444;
+    font-weight: 600;
+    margin-top: 2px;
+}
+
+.btn-login-submit {
+    height: 46px;
+    font-size: 14px;
+    font-weight: 600;
+    width: 100%;
+    margin-top: 6px;
+    border-radius: 9px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    background: var(--app-primary);
+    color: #ffffff;
+    border: none;
+    box-shadow: 0 4px 14px rgba(53, 93, 111, 0.25);
+    transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+    cursor: pointer;
+}
+
+.btn-login-submit:hover {
+    background: var(--app-primary-hover);
+    box-shadow: 0 6px 20px rgba(53, 93, 111, 0.35);
+    transform: translateY(-1px);
+}
+
+.login-footer {
+    margin-top: 24px;
+    padding-top: 16px;
+    border-top: 1px solid #f1f5f9;
+    text-align: center;
+    font-size: 11px;
+    color: var(--app-muted);
+}
+    padding-top: 18px;
+    border-top: 1px solid #f1f5f9;
+    text-align: center;
+    font-size: 11px;
+    color: var(--app-muted);
+}
+
+/* =========================================================
+   USER HEADER MENU & GLOBAL MESSAGES
+   ========================================================= */
+
+.user-dropdown-header {
+    padding: 8px 12px;
+    display: flex;
+    flex-direction: column;
+    gap: 3px;
+}
+
+.user-dropdown-header strong {
+    font-size: 13px;
+    color: var(--app-text);
+}
+
+.user-dropdown-role {
+    font-size: 11px;
+    color: var(--app-primary);
+    font-weight: 600;
+}
+
+.lux-app-messages {
+    margin-bottom: 20px;
+}
+
+.lux-alert {
+    border-radius: 10px;
+    font-size: 13px;
+    font-weight: 500;
+    padding: 12px 18px;
+    border: none;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
+}
+
+.sidebar-link.disabled {
+    opacity: 0.4;
+    cursor: not-allowed;
+    pointer-events: none;
+}
+
+/* =========================================================
+   USER MANAGEMENT MODULE (LIST & FORM)
+   ========================================================= */
+
+.users-page-wrapper {
+    max-width: 1100px;
+    margin: 0 auto;
+}
+
+.users-form-page-wrapper {
+    max-width: 660px;
+    margin: 0 auto;
+}
+
+.btn-user-add {
+    padding: 0 18px;
+    height: 42px;
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    font-weight: 600;
+    border-radius: 9px;
+    text-decoration: none;
+}
+
+.users-card {
+    background: var(--app-surface);
+    border: 1px solid var(--app-border);
+    border-radius: 14px;
+    overflow: hidden;
+    box-shadow: 0 8px 28px rgba(31, 41, 51, 0.045);
+}
+
+.users-card-header {
+    padding: 20px 24px;
+    border-bottom: 1px solid var(--app-border);
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.users-card-header h2 {
+    margin: 0 0 4px;
+    font-size: 17px;
+    font-weight: 700;
+}
+
+.users-card-header p {
+    margin: 0;
+    font-size: 12px;
+    color: var(--app-muted);
+}
+
+.users-count-badge {
+    font-size: 12px;
+    color: var(--app-muted);
+    background: #f1f5f9;
+    padding: 6px 12px;
+    border-radius: 8px;
+}
+
+.users-count-badge strong {
+    color: var(--app-text);
+}
+
+.users-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 13px;
+}
+
+.users-table th {
+    background: #f8fafb;
+    border-bottom: 1px solid var(--app-border);
+    padding: 12px 20px;
+    text-align: left;
+    font-size: 11px;
+    font-weight: 700;
+    color: var(--app-muted);
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+}
+
+.users-table td {
+    padding: 14px 20px;
+    border-bottom: 1px solid #f1f5f9;
+    color: var(--app-text);
+    vertical-align: middle;
+}
+
+.users-table tr:last-child td {
+    border-bottom: none;
+}
+
+.users-table tr:hover td {
+    background: #fbfcfd;
+}
+
+.user-cell-name {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+.user-avatar-badge {
+    width: 32px;
+    height: 32px;
+    border-radius: 50%;
+    background: #eef4f7;
+    color: var(--app-primary);
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    font-weight: 700;
+    font-size: 13px;
+}
+
+.user-tag-current {
+    font-size: 10px;
+    font-weight: 700;
+    background: #e2e8f0;
+    color: #475569;
+    padding: 2px 6px;
+    border-radius: 4px;
+    text-transform: uppercase;
+}
+
+.user-cell-meta {
+    font-size: 12px;
+    color: var(--app-muted);
+}
+
+.badge-role {
+    display: inline-flex;
+    align-items: center;
+    padding: 4px 10px;
+    border-radius: 999px;
+    font-size: 11px;
+    font-weight: 700;
+}
+
+.badge-role-admin {
+    background: #eef4f7;
+    color: #2b4c5b;
+    border: 1px solid #c9dbe2;
+}
+
+.badge-role-visita {
+    background: #f3f4f6;
+    color: #4b5563;
+    border: 1px solid #e5e7eb;
+}
+
+.badge-status {
+    display: inline-flex;
+    align-items: center;
+    padding: 3px 8px;
+    border-radius: 6px;
+    font-size: 11px;
+    font-weight: 600;
+}
+
+.badge-status-active {
+    background: #ecfdf5;
+    color: #065f46;
+}
+
+.badge-status-inactive {
+    background: #fef2f2;
+    color: #991b1b;
+}
+
+.users-action-btns {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.btn-action-edit {
+    padding: 5px 12px;
+    border-radius: 7px;
+    background: #f1f5f9;
+    border: 1px solid #cbd5e1;
+    color: #334155;
+    text-decoration: none;
+    font-size: 12px;
+    font-weight: 600;
+    transition: all 0.15s ease;
+}
+
+.btn-action-edit:hover {
+    background: var(--app-primary);
+    border-color: var(--app-primary);
+    color: #ffffff;
+}
+
+.btn-action-delete {
+    padding: 5px 10px;
+    border-radius: 7px;
+    background: #fff;
+    border: 1px solid #fecaca;
+    color: #dc2626;
+    font-size: 12px;
+    cursor: pointer;
+    transition: all 0.15s ease;
+}
+
+.btn-action-delete:hover {
+    background: #dc2626;
+    color: #ffffff;
+}
+
+/* User Form */
+.users-form-card {
+    background: var(--app-surface);
+    border: 1px solid var(--app-border);
+    border-radius: 16px;
+    padding: 32px;
+    box-shadow: 0 8px 28px rgba(31, 41, 51, 0.045);
+    width: 100%;
+    box-sizing: border-box;
+}
+
+.users-form-grid {
+    display: flex;
+    flex-direction: column;
+    gap: 20px;
+}
+
+.form-help-text {
+    font-size: 11px;
+    color: var(--app-muted);
+    margin-top: 5px;
+    display: block;
+    line-height: 1.4;
+}
+
+.form-group-checkbox {
+    padding: 10px 14px;
+    background: #f8fafc;
+    border-radius: 9px;
+    border: 1px solid var(--app-border);
+}
+
+.users-form-actions {
+    margin-top: 26px;
+    padding-top: 20px;
+    border-top: 1px solid var(--app-border);
+    display: flex;
+    align-items: center;
+    gap: 12px;
+}
+
+.btn-user-save {
+    padding: 0 22px;
+    height: 44px;
+    font-weight: 700;
+    border-radius: 9px;
+}
+
+/* =========================================================
+   USER FORM ENHANCEMENTS (ROLES & SWITCH)
+   ========================================================= */
+
+.form-input-wrap {
+    position: relative;
+    display: flex;
+    align-items: center;
+}
+
+.form-input-icon {
+    position: absolute;
+    left: 12px;
+    font-size: 15px;
+    color: var(--app-muted);
+    pointer-events: none;
+    user-select: none;
+    z-index: 2;
+}
+
+.form-input-wrap .lux-input {
+    padding-left: 38px !important;
+}
+
+.form-password-toggle {
+    position: absolute;
+    right: 10px;
+    background: none;
+    border: none;
+    font-size: 16px;
+    cursor: pointer;
+    padding: 4px;
+    border-radius: 6px;
+    transition: opacity 0.15s ease;
+    z-index: 2;
+}
+
+.form-password-toggle:hover {
+    opacity: 0.7;
+}
+
+/* Tarjetas interactivas de selección de rol */
+.role-cards-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 14px;
+    margin-top: 4px;
+}
+
+@media (max-width: 640px) {
+    .role-cards-grid {
+        grid-template-columns: 1fr;
+    }
+}
+
+.role-card {
+    background: #ffffff;
+    border: 2px solid var(--app-border);
+    border-radius: 12px;
+    padding: 16px;
+    cursor: pointer;
+    transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    user-select: none;
+}
+
+.role-card:hover {
+    border-color: #cbd5e1;
+    background: #fbfcfd;
+    transform: translateY(-1px);
+}
+
+.role-card.selected {
+    border-color: var(--app-primary);
+    background: #f5f9fa;
+    box-shadow: 0 4px 16px rgba(53, 93, 111, 0.12);
+}
+
+.role-card-top {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 10px;
+}
+
+.role-card-icon {
+    font-size: 22px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.role-card-title-group {
+    display: flex;
+    flex-direction: column;
+    flex: 1;
+}
+
+.role-card-title {
+    font-size: 14px;
+    font-weight: 700;
+    color: var(--app-text);
+}
+
+.role-card-tag {
+    font-size: 10px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.03em;
+    margin-top: 2px;
+}
+
+.role-card-tag.tag-visita {
+    color: #4b5563;
+}
+
+.role-card-tag.tag-admin {
+    color: var(--app-primary);
+}
+
+.role-card-check {
+    width: 22px;
+    height: 22px;
+    border-radius: 50%;
+    background: var(--app-primary);
+    color: #ffffff;
+    font-size: 12px;
+    font-weight: bold;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    animation: luxPopoverFadeIn 0.15s ease-out;
+}
+
+.role-card-desc {
+    font-size: 11px;
+    line-height: 1.45;
+    color: var(--app-muted);
+    margin: 0;
+}
+
+.role-card.selected .role-card-desc {
+    color: #334155;
+}
+
+/* Switch card (estilo productos) */
+.user-switch-box {
+    background: #ffffff;
+    border: 1px solid var(--app-border);
+    border-radius: 12px;
+    padding: 14px 18px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    transition: all 0.2s ease;
+}
+
+.user-switch-box:hover {
+    border-color: #cbd5e1;
+    background: #fbfcfd;
+}
+
+.user-switch-box .product-active-text strong {
+    font-size: 13px;
+    font-weight: 700;
+    color: var(--app-text);
+}
+
+.user-switch-box .product-active-text span {
+    font-size: 11px;
+    color: var(--app-muted);
+    margin-top: 2px;
+}
+
+.user-switch-box .form-switch .form-check-input {
+    width: 2.7em;
+    height: 1.4em;
+    cursor: pointer;
+}
+
+.user-switch-box .form-switch .form-check-input:checked {
+    background-color: var(--app-primary);
+    border-color: var(--app-primary);
+}
+
 
 
 

@@ -10,9 +10,12 @@ from productos.models import Producto
 from .models import Venta, DetalleVenta, CierreCaja
 from django.utils import timezone
 from django.views.decorators.clickjacking import xframe_options_sameorigin
+from django.contrib.auth.decorators import login_required
+from usuarios.decorators import admin_required
 from fiadores.models import Fiador, MovimientoFiado
 
 
+@login_required
 def pos(request):
     fiadores = Fiador.objects.filter(
         activo=True
@@ -37,6 +40,7 @@ def pos(request):
     )
 
 
+@login_required
 def buscar_productos(request):
     busqueda = request.GET.get("q", "").strip()
 
@@ -78,6 +82,7 @@ def buscar_productos(request):
     })
 
 
+@login_required
 def confirmar_venta(request):
     if request.method != "POST":
         return JsonResponse(
@@ -324,6 +329,7 @@ def confirmar_venta(request):
     })
 
 
+@login_required
 def corte_diario(request):
     hoy = timezone.localdate()
 
@@ -390,6 +396,7 @@ def corte_diario(request):
     )
 
 
+@login_required
 def cerrar_caja(request):
     """
     Endpoint POST (fetch JSON) para registrar el cierre de caja del día con cuadratura de efectivo.
@@ -480,6 +487,7 @@ def cerrar_caja(request):
     )
 
 
+@admin_required
 def historial_ventas(request):
     """
     Módulo de historial de ventas con filtros de fecha, medio de pago y búsqueda,
@@ -583,6 +591,7 @@ def historial_ventas(request):
 
 
 @xframe_options_sameorigin
+@login_required
 def ticket_venta(request, pk):
     """
     Vista optimizada para impresión de ticket térmico (58mm / 80mm).
