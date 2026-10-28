@@ -1,4 +1,5 @@
 {% extends "base.html" %}
+{% load ventas_extras %}
 
 {% block title %}
 {{ fiador.nombre }} | LuxStore
@@ -8,544 +9,436 @@
 
 <div
     class="guarantor-account"
-    x-data="{
-        saldo: {{ fiador.saldo }},
-        mostrarAbono: false,
-        guardando: false,
-        error: '',
-        movimientosNuevos: [],
-
-        moneda(valor) {
-            return '$' + new Intl.NumberFormat(
-                'es-CL'
-            ).format(valor);
-        },
-
-        abrirAbono() {
-
-            if (this.saldo <= 0) {
-                return;
-            }
-
-            this.error = '';
-            this.mostrarAbono = true;
-
-            this.$nextTick(() => {
-                this.$refs.montoAbono.focus();
-            });
-        },
-
-        cerrarAbono() {
-
-            if (this.guardando) {
-                return;
-            }
-
-            this.mostrarAbono = false;
-            this.error = '';
-
-            this.$refs.abonoForm.reset();
-        },
-
-        async registrarAbono() {
-
-            if (this.guardando) {
-                return;
-            }
-
-            this.guardando = true;
-            this.error = '';
-
-            const datos = new FormData(
-                this.$refs.abonoForm
-            );
-
-            try {
-
-                const respuesta = await fetch(
-                    '{% url "fiadores:registrar_abono" fiador.pk %}',
-                    {
-                        method: 'POST',
-                        body: datos,
-                        credentials: 'same-origin',
-                        headers: {
-                            'X-Requested-With': 'XMLHttpRequest'
-                        }
-                    }
-                );
-
-                const resultado =
-                    await respuesta.json();
-
-
-                if (!respuesta.ok) {
-
-                    this.error =
-                        resultado.mensaje
-                        || 'No fue posible registrar el abono.';
-
-                    return;
-                }
-
-
-                this.saldo = resultado.saldo;
-
-                this.movimientosNuevos.unshift(
-                    resultado.movimiento
-                );
-
-                this.mostrarAbono = false;
-
-                this.$refs.abonoForm.reset();
-
-
-            } catch (error) {
-
-                this.error =
-                    'No fue posible conectar con el servidor.';
-
-            } finally {
-
-                this.guardando = false;
-
-            }
-        }
-    }"
+    x-data="detalleFiadorManager({{ fiador.saldo }}, '{{ fiador.pk }}')"
+    x-init="init()"
 >
 
-
     <div class="product-page-top">
-
         <a
             href="{% url 'fiadores:lista' %}"
             class="back-link"
         >
-            ← Volver a fiadores
+            <svg class="back-svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <line x1="19" y1="12" x2="5" y2="12"></line>
+                <polyline points="12 19 5 12 12 5"></polyline>
+            </svg>
+            <span>Volver a fiadores</span>
         </a>
-
     </div>
 
-
-    <!-- CABECERA -->
+    <!-- CABECERA DE LA CUENTA -->
     <div class="guarantor-header">
-
         <div class="guarantor-identity">
-
             <div class="fiador-avatar fiador-avatar-large">
-                {{ fiador.nombre|first|upper }}
+                <span>{{ fiador.nombre|first|upper }}</span>
             </div>
-
 
             <div>
-
                 <span class="product-eyebrow">
-                    Cuenta fiada
+                    Cuenta Corriente
                 </span>
-
-                <h1>
+                <h1 class="guarantor-client-name">
                     {{ fiador.nombre }}
                 </h1>
-
-                {% if fiador.activo %}
-
-                    <span class="status-badge status-active">
-                        Activo
-                    </span>
-
-                {% else %}
-
-                    <span class="status-badge status-inactive">
-                        Inactivo
-                    </span>
-
-                {% endif %}
-
+                <div class="guarantor-status-wrap">
+                    {% if fiador.activo %}
+                        <span class="status-badge status-active">
+                            Cliente activo
+                        </span>
+                    {% else %}
+                        <span class="status-badge status-inactive">
+                            Inactivo
+                        </span>
+                    {% endif %}
+                </div>
             </div>
-
         </div>
-
 
         <button
             type="button"
-            class="btn btn-lux"
+            class="btn btn-lux btn-abono-action"
             @click="abrirAbono()"
             :disabled="saldo <= 0"
         >
-            + Registrar abono
+            <svg class="btn-svg-cash" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <rect x="2" y="4" width="20" height="16" rx="2"></rect>
+                <line x1="12" y1="8" x2="12" y2="16"></line>
+                <line x1="8" y1="12" x2="16" y2="12"></line>
+            </svg>
+            <span>Registrar abono</span>
         </button>
-
     </div>
 
-
-    <!-- SALDO -->
-    <div class="guarantor-balance">
-
-        <span>
-            Deuda actual
-        </span>
-
-        <strong
-            x-text="moneda(saldo)"
-        ></strong>
-
-        <small x-show="saldo > 0">
-            Saldo pendiente
-        </small>
-
-        <small
-            x-show="saldo === 0"
-            x-cloak
-        >
-            Cuenta al día
-        </small>
-
-    </div>
-
-
-    <!-- MOVIMIENTOS -->
-    <section class="guarantor-movements">
-
-        <div class="guarantor-movements-header">
-
-            <div>
-
-                <h2>
-                    Movimientos
-                </h2>
-
-                <p>
-                    Historial de cargos y abonos de esta cuenta.
-                </p>
-
-            </div>
-
+    <!-- BALANCE / ESTADO DE DEUDA -->
+    <div class="guarantor-balance" :class="saldo > 0 ? 'balance-debt' : 'balance-clear'">
+        <div class="balance-meta">
+            <span class="balance-title">Deuda actual pendiente</span>
+            <strong class="balance-number" x-text="moneda(saldo)"></strong>
         </div>
 
+        <div class="balance-status-badge">
+            <span x-show="saldo > 0" class="badge-debt-pill">
+                <svg viewBox="0 0 24 24" fill="currentColor" style="width: 10px; height: 10px; margin-right: 6px;">
+                    <circle cx="12" cy="12" r="10"></circle>
+                </svg>
+                Cuenta con saldo pendiente
+            </span>
+            <span x-show="saldo <= 0" class="badge-ok-pill" style="display: none;">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="width: 12px; height: 12px; margin-right: 5px;">
+                    <polyline points="20 6 9 17 4 12"></polyline>
+                </svg>
+                Cuenta al día ($0)
+            </span>
+        </div>
+    </div>
 
-        <!-- ABONOS CREADOS SIN RECARGAR -->
+    <!-- HISTORIAL DE MOVIMIENTOS -->
+    <section class="guarantor-movements">
+        <div class="guarantor-movements-header">
+            <div>
+                <h2>Historial de movimientos</h2>
+                <p>Registro ordenado de ventas a crédito y abonos realizados.</p>
+            </div>
+        </div>
+
+        <!-- ABONOS REGISTRADOS EN TIEMPO REAL -->
         <template
             x-for="movimiento in movimientosNuevos"
             :key="'nuevo-' + movimiento.id"
         >
-
-            <div class="guarantor-movement-row">
-
+            <div class="guarantor-movement-row row-abono">
                 <div class="movement-icon movement-payment">
-                    ↓
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+                        <polyline points="7 10 12 15 17 10"></polyline>
+                        <line x1="12" y1="3" x2="12" y2="15"></line>
+                        <line x1="5" y1="20" x2="19" y2="20"></line>
+                    </svg>
                 </div>
-
 
                 <div class="movement-main">
-
-                    <strong>
-                        Abono
-                    </strong>
-
-                    <span
-                        x-text="movimiento.fecha"
-                    ></span>
-
+                    <div class="movement-title-wrap">
+                        <strong>Abono a cuenta</strong>
+                        <span class="badge-mov-pill badge-mov-abono">Abono</span>
+                    </div>
+                    <span class="movement-date" x-text="movimiento.fecha"></span>
                 </div>
 
+                <div class="movement-note" x-text="movimiento.nota || 'Abono en efectivo / transferencia'"></div>
 
-                <div
-                    class="movement-note"
-                    x-text="
-                        movimiento.nota
-                        || 'Abono a cuenta'
-                    "
-                ></div>
-
-
-                <strong
-                    class="movement-amount movement-amount-payment"
-                    x-text="'-' + moneda(movimiento.monto)"
-                ></strong>
-
+                <strong class="movement-amount movement-amount-payment" x-text="'-' + moneda(movimiento.monto)"></strong>
             </div>
-
         </template>
 
-
         {% for movimiento in movimientos %}
-
-            <div class="guarantor-movement-row">
-
+            <div class="guarantor-movement-row {% if movimiento.tipo == 'ABONO' %}row-abono{% else %}row-cargo{% endif %}">
                 {% if movimiento.tipo == "CARGO" %}
-
                     <div class="movement-icon movement-charge">
-                        ↑
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+                            <circle cx="9" cy="21" r="1"></circle>
+                            <circle cx="20" cy="21" r="1"></circle>
+                            <path d="M1 1h4l2.68 13.39a2 2 0 0 0 2 1.61h9.72a2 2 0 0 0 2-1.61L23 6H6"></path>
+                        </svg>
                     </div>
-
                 {% else %}
-
                     <div class="movement-icon movement-payment">
-                        ↓
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+                            <polyline points="7 10 12 15 17 10"></polyline>
+                            <line x1="12" y1="3" x2="12" y2="15"></line>
+                            <line x1="5" y1="20" x2="19" y2="20"></line>
+                        </svg>
                     </div>
-
                 {% endif %}
 
-
                 <div class="movement-main">
-
-                    <strong>
+                    <div class="movement-title-wrap">
+                        <strong>
+                            {% if movimiento.tipo == "CARGO" %}
+                                {% if movimiento.venta %}
+                                    Venta #{{ movimiento.venta.id }}
+                                {% else %}
+                                    Cargo fiado
+                                {% endif %}
+                            {% else %}
+                                Abono a cuenta
+                            {% endif %}
+                        </strong>
 
                         {% if movimiento.tipo == "CARGO" %}
-
+                            <span class="badge-mov-pill badge-mov-cargo">Cargo</span>
                             {% if movimiento.venta %}
-                                Venta #{{ movimiento.venta.id }}
-                            {% else %}
-                                Cargo
+                                <a
+                                    href="{% url 'ventas:ticket_venta' movimiento.venta.id %}?autoprint=1"
+                                    target="_blank"
+                                    class="ticket-link-pill"
+                                    title="Ver boleta térmica de esta venta"
+                                >
+                                    Ver boleta ↗
+                                </a>
                             {% endif %}
-
                         {% else %}
-
-                            Abono
-
+                            <span class="badge-mov-pill badge-mov-abono">Abono</span>
                         {% endif %}
+                    </div>
 
-                    </strong>
-
-
-                    <span>
+                    <span class="movement-date">
                         {{ movimiento.creado_en|date:"d/m/Y H:i" }}
                     </span>
-
                 </div>
-
 
                 <div class="movement-note">
-
                     {% if movimiento.nota %}
-
                         {{ movimiento.nota }}
-
                     {% elif movimiento.tipo == "CARGO" %}
-
-                        Venta fiada
-
+                        Compra registrada al fiado en caja
                     {% else %}
-
-                        Abono a cuenta
-
+                        Abono de deuda
                     {% endif %}
-
                 </div>
 
-
-                <strong
-                    class="
-                        movement-amount
-                        {% if movimiento.tipo == 'ABONO' %}
-                            movement-amount-payment
-                        {% endif %}
-                    "
-                >
-
-                    {% if movimiento.tipo == "ABONO" %}
-                        -
-                    {% else %}
-                        +
-                    {% endif %}
-
-                    ${{ movimiento.monto }}
-
+                <strong class="movement-amount {% if movimiento.tipo == 'ABONO' %}movement-amount-payment{% else %}movement-amount-charge{% endif %}">
+                    {% if movimiento.tipo == "ABONO" %}-{% else %}+{% endif %}
+                    {{ movimiento.monto|peso }}
                 </strong>
-
             </div>
-
         {% empty %}
-
             <div class="guarantor-empty">
-
-                <strong>
-                    Sin movimientos todavía
-                </strong>
-
-                <span>
-                    Las ventas fiadas y los abonos aparecerán aquí.
-                </span>
-
+                <svg class="empty-icon-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+                    <circle cx="12" cy="12" r="10"></circle>
+                    <line x1="12" y1="8" x2="12" y2="12"></line>
+                    <line x1="12" y1="16" x2="12.01" y2="16"></line>
+                </svg>
+                <strong>Sin movimientos todavía</strong>
+                <span>Las compras al crédito y los abonos realizados aparecerán ordenados aquí.</span>
             </div>
-
         {% endfor %}
-
     </section>
 
-
-
-    <!-- MODAL ABONO -->
+    <!-- MODAL DE ABONO RÁPIDO -->
     <div
-        class="lux-confirm-backdrop"
+        class="modal-backdrop"
         x-show="mostrarAbono"
         x-transition.opacity
-        x-cloak
+        style="display: none;"
         @click.self="cerrarAbono()"
         @keydown.escape.window="cerrarAbono()"
     >
-
         <div
-            class="lux-confirm-card"
+            class="restock-modal-card"
             x-show="mostrarAbono"
-            x-transition
         >
-
             <form
                 x-ref="abonoForm"
                 @submit.prevent="registrarAbono()"
             >
-
                 {% csrf_token %}
 
-
-                <div class="lux-confirm-header">
-
+                <div class="restock-modal-header">
                     <div>
-
-                        <span class="lux-confirm-eyebrow">
-                            Cuenta fiada
-                        </span>
-
-                        <h2>
-                            Registrar abono
-                        </h2>
-
-                        <p>
-                            {{ fiador.nombre }}
-                        </p>
-
+                        <h3 class="modal-title">Registrar abono de dinero</h3>
+                        <p class="modal-subtitle">{{ fiador.nombre }}</p>
                     </div>
-
 
                     <button
                         type="button"
-                        class="lux-confirm-close"
+                        class="btn-modal-close"
                         @click="cerrarAbono()"
                     >
-                        ×
+                        ✕
                     </button>
-
                 </div>
 
-
-                <div class="guarantor-payment-body">
-
-                    <div class="guarantor-current-debt">
-
-                        <span>
-                            Deuda actual
-                        </span>
-
-                        <strong
-                            x-text="moneda(saldo)"
-                        ></strong>
-
+                <div class="restock-modal-body">
+                    <!-- BALANCE RESUMEN -->
+                    <div class="restock-info-grid">
+                        <div class="restock-info-item">
+                            <span>Deuda total actual</span>
+                            <strong class="text-red" x-text="moneda(saldo)"></strong>
+                        </div>
+                        <div class="restock-info-item">
+                            <span>Acción rápida</span>
+                            <button
+                                type="button"
+                                class="btn-pay-all"
+                                @click="montoAbono = saldo"
+                            >
+                                Pagar total
+                            </button>
+                        </div>
                     </div>
 
+                    <!-- BOTONES RÁPIDOS DE BILLETES -->
+                    <div class="form-group mt-3">
+                        <label class="lux-label">Monto del abono ($)</label>
 
-                    <div class="product-field">
+                        <div class="quick-add-buttons">
+                            <button type="button" class="btn-quick-num" @click="agregarMonto(1000)">+$1.000</button>
+                            <button type="button" class="btn-quick-num" @click="agregarMonto(2000)">+$2.000</button>
+                            <button type="button" class="btn-quick-num" @click="agregarMonto(5000)">+$5.000</button>
+                            <button type="button" class="btn-quick-num" @click="agregarMonto(10000)">+$10.000</button>
+                            <button type="button" class="btn-quick-num" @click="agregarMonto(20000)">+$20.000</button>
+                        </div>
 
-                        <label
-                            for="monto-abono"
-                            class="lux-label"
-                        >
-                            Monto del abono
-                        </label>
-
-                        <div class="input-group lux-input-group">
-
-                            <span class="input-group-text lux-input-prefix">
-                                $
-                            </span>
-
+                        <div class="restock-input-row">
                             <input
                                 id="monto-abono"
                                 name="monto"
                                 type="number"
                                 min="1"
                                 :max="saldo"
-                                x-ref="montoAbono"
-                                class="form-control lux-input"
+                                x-model.number="montoAbono"
+                                x-ref="montoAbonoInput"
+                                class="form-control lux-input restock-input"
                                 placeholder="0"
                                 required
                             >
-
+                            <span class="restock-input-unit">pesos</span>
                         </div>
-
                     </div>
 
-
-                    <div class="product-field">
-
-                        <label
-                            for="nota-abono"
-                            class="lux-label"
-                        >
-                            Nota
-                        </label>
-
+                    <div class="form-group mt-3">
+                        <label for="nota-abono" class="lux-label">Nota o comentario</label>
                         <input
                             id="nota-abono"
                             name="nota"
                             type="text"
                             maxlength="250"
                             class="form-control lux-input"
-                            placeholder="Opcional"
+                            placeholder="Ej: Pago en efectivo / transferencia (opcional)"
                             autocomplete="off"
                         >
-
                     </div>
 
+                    <!-- PREVIEW DEL NUEVO SALDO -->
+                    <div class="restock-result-preview" :class="saldoRestante === 0 ? 'preview-settled' : ''">
+                        <span>Saldo resultante por pagar:</span>
+                        <strong class="result-number">
+                            <span x-text="moneda(saldoRestante)"></span>
+                        </strong>
+                    </div>
 
                     <div
-                        class="lux-confirm-error"
+                        class="field-error mt-2"
                         x-show="error"
                         x-text="error"
-                        x-cloak
                     ></div>
-
                 </div>
 
-
-                <div class="lux-confirm-actions">
-
+                <div class="restock-modal-footer">
                     <button
                         type="button"
-                        class="btn-cancel"
+                        class="btn btn-cancel"
                         @click="cerrarAbono()"
                         :disabled="guardando"
                     >
                         Cancelar
                     </button>
 
-
                     <button
                         type="submit"
-                        class="btn btn-lux lux-confirm-button"
-                        :disabled="guardando"
+                        class="btn btn-lux btn-confirm-restock"
+                        :disabled="guardando || !montoAbono || montoAbono <= 0"
                     >
-
-                        <span x-show="!guardando">
-                            Registrar abono
-                        </span>
-
-                        <span
-                            x-show="guardando"
-                            style="display: none;"
-                        >
-                            Guardando...
-                        </span>
-
+                        <span x-show="!guardando">Confirmar abono</span>
+                        <span x-show="guardando" style="display: none;">Guardando...</span>
                     </button>
-
                 </div>
-
             </form>
-
         </div>
-
     </div>
 
 </div>
+
+<script>
+function detalleFiadorManager(saldoInicial, fiadorPk) {
+    return {
+        saldo: saldoInicial,
+        fiadorId: fiadorPk,
+        mostrarAbono: false,
+        guardando: false,
+        error: '',
+        montoAbono: '',
+        movimientosNuevos: [],
+
+        init() {},
+
+        get saldoRestante() {
+            const abono = parseInt(this.montoAbono) || 0;
+            return Math.max(0, this.saldo - abono);
+        },
+
+        moneda(valor) {
+            return '$' + new Intl.NumberFormat('es-CL').format(valor || 0);
+        },
+
+        agregarMonto(valor) {
+            const actual = parseInt(this.montoAbono) || 0;
+            const nuevo = actual + valor;
+            this.montoAbono = Math.min(this.saldo, nuevo);
+        },
+
+        abrirAbono() {
+            if (this.saldo <= 0) return;
+            this.error = '';
+            this.montoAbono = '';
+            this.mostrarAbono = true;
+            this.$nextTick(() => {
+                if (this.$refs.montoAbonoInput) {
+                    this.$refs.montoAbonoInput.focus();
+                }
+            });
+        },
+
+        cerrarAbono() {
+            if (this.guardando) return;
+            this.mostrarAbono = false;
+            this.error = '';
+            this.montoAbono = '';
+            this.$refs.abonoForm.reset();
+        },
+
+        async registrarAbono() {
+            if (this.guardando) return;
+            const montoNum = parseInt(this.montoAbono);
+            if (!montoNum || montoNum <= 0) {
+                this.error = 'El abono debe ser mayor a $0.';
+                return;
+            }
+
+            this.guardando = true;
+            this.error = '';
+
+            const datos = new FormData(this.$refs.abonoForm);
+
+            try {
+                const url = `/fiadores/${this.fiadorId}/abono/`;
+                const respuesta = await fetch(url, {
+                    method: 'POST',
+                    body: datos,
+                    credentials: 'same-origin',
+                    headers: {
+                        'X-Requested-With': 'XMLHttpRequest'
+                    }
+                });
+
+                const resultado = await respuesta.json();
+
+                if (!respuesta.ok || !resultado.ok) {
+                    this.error = resultado.mensaje || 'No fue posible registrar el abono.';
+                    return;
+                }
+
+                this.saldo = resultado.saldo;
+                this.movimientosNuevos.unshift(resultado.movimiento);
+                this.cerrarAbono();
+
+            } catch (err) {
+                this.error = 'No fue posible conectar con el servidor.';
+            } finally {
+                this.guardando = false;
+            }
+        }
+    };
+}
+</script>
 
 {% endblock %}

@@ -37,6 +37,11 @@ urlpatterns = [
         views.historial_ventas,
         name="historial",
     ),
+    path(
+        "historial/exportar-excel/",
+        views.exportar_ventas_excel,
+        name="exportar_excel",
+    ),
 
     path(
         "<int:pk>/ticket/",

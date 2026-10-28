@@ -1,4 +1,5 @@
 {% extends "base.html" %}
+{% load ventas_extras %}
 
 {% block title %}
 Fiadores | LuxStore
@@ -6,166 +7,333 @@ Fiadores | LuxStore
 
 {% block content %}
 
-<div class="page-header">
+<div
+    class="fiadores-page"
+    x-data="fiadoresManager()"
+    x-init="init()"
+>
 
-    <div>
+    <!-- ENCABEZADO DE PÁGINA -->
+    <div class="page-header">
+        <div>
+            <h1 class="page-title">
+                Fiadores y Cuentas Corrientes
+            </h1>
+            <p class="page-subtitle">
+                Administra las cuentas de crédito de tus clientes, deudas activas y abonos.
+            </p>
+        </div>
 
-        <h1 class="page-title">
-            Fiadores
-        </h1>
+        <a
+            href="{% url 'fiadores:crear' %}"
+            class="btn btn-lux"
+        >
+            <svg class="btn-svg-plus" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+                <line x1="12" y1="5" x2="12" y2="19"></line>
+                <line x1="5" y1="12" x2="19" y2="12"></line>
+            </svg>
+            <span>Nuevo fiador</span>
+        </a>
+    </div>
 
-        <p class="page-subtitle">
-            Administra las cuentas fiadas de tus clientes.
-        </p>
+    <!-- TARJETAS DE RESUMEN (KPIS) -->
+    <div class="inventory-summary fiadores-summary">
+
+        <div
+            class="inventory-summary-card card-danger"
+            :class="{ 'is-active-filter': filtro === 'deuda' }"
+            @click="setFiltro('deuda')"
+            title="Filtrar clientes con deuda activa"
+        >
+            <div class="summary-card-header">
+                <span class="summary-label">Total por cobrar</span>
+                <span class="summary-icon icon-red">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <rect x="2" y="4" width="20" height="16" rx="2"></rect>
+                        <line x1="2" y1="10" x2="22" y2="10"></line>
+                    </svg>
+                </span>
+            </div>
+            <strong class="summary-value text-red">{{ deuda_total|peso }}</strong>
+            <small class="summary-hint">Deuda acumulada en la tienda</small>
+        </div>
+
+        <div
+            class="inventory-summary-card card-warning"
+            :class="{ 'is-active-filter': filtro === 'deuda' }"
+            @click="setFiltro('deuda')"
+            title="Clientes que deben saldo"
+        >
+            <div class="summary-card-header">
+                <span class="summary-label">Con saldo pendiente</span>
+                <span class="summary-icon icon-amber">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path>
+                        <circle cx="9" cy="7" r="4"></circle>
+                        <path d="M23 21v-2a4 4 0 0 0-3-3.87"></path>
+                        <path d="M16 3.13a4 4 0 0 1 0 7.75"></path>
+                    </svg>
+                </span>
+            </div>
+            <strong class="summary-value text-amber">{{ clientes_con_deuda }}</strong>
+            <small class="summary-hint">Clientes con cuentas abiertas</small>
+        </div>
+
+        <div
+            class="inventory-summary-card"
+            :class="{ 'is-active-filter': filtro === 'aldia' }"
+            @click="setFiltro('aldia')"
+            title="Clientes con cuenta al día ($0)"
+        >
+            <div class="summary-card-header">
+                <span class="summary-label">Cuentas al día</span>
+                <span class="summary-icon icon-blue">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"></path>
+                        <polyline points="22 4 12 14.01 9 11.01"></polyline>
+                    </svg>
+                </span>
+            </div>
+            <strong class="summary-value">{{ clientes_al_dia }}</strong>
+            <small class="summary-hint">Clientes sin deuda pendiente</small>
+        </div>
+
+    </div>
+
+    <!-- CONTROLES: BUSCADOR Y PESTAÑAS DE FILTRADO -->
+    <div class="inventory-controls-bar">
+
+        <div class="inventory-search-wrap">
+            <svg class="search-icon-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <circle cx="11" cy="11" r="8"></circle>
+                <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
+            </svg>
+            <input
+                type="search"
+                x-model="busqueda"
+                @input="aplicarFiltros()"
+                class="inventory-search-input"
+                placeholder="Buscar cliente fiador por nombre..."
+                autocomplete="off"
+            >
+            <button
+                type="button"
+                x-show="busqueda"
+                @click="busqueda = ''; aplicarFiltros()"
+                class="search-clear-btn"
+                title="Limpiar búsqueda"
+            >
+                ✕
+            </button>
+        </div>
+
+        <div class="inventory-filter-pills">
+            <button
+                type="button"
+                class="filter-pill"
+                :class="{ 'active': filtro === 'todos' }"
+                @click="setFiltro('todos')"
+            >
+                Todos
+                <span class="pill-count">{{ total_fiadores }}</span>
+            </button>
+
+            <button
+                type="button"
+                class="filter-pill pill-danger"
+                :class="{ 'active': filtro === 'deuda' }"
+                @click="setFiltro('deuda')"
+            >
+                Con deuda
+                <span class="pill-count">{{ clientes_con_deuda }}</span>
+            </button>
+
+            <button
+                type="button"
+                class="filter-pill pill-success"
+                :class="{ 'active': filtro === 'aldia' }"
+                @click="setFiltro('aldia')"
+            >
+                Al día ($0)
+                <span class="pill-count">{{ clientes_al_dia }}</span>
+            </button>
+        </div>
 
     </div>
 
 
-    <a
-        href="{% url 'fiadores:crear' %}"
-        class="btn btn-lux"
-    >
-        + Nuevo fiador
-    </a>
+    {% if fiadores %}
 
-</div>
+        <div
+            class="fiadores-grid"
+            id="fiadores-grid"
+        >
 
+            {% for fiador in fiadores %}
 
-<div class="fiadores-search">
-
-    <input
-        type="search"
-        id="fiador-search"
-        class="search-box"
-        placeholder="Buscar fiador..."
-        autocomplete="off"
-    >
-
-</div>
-
-
-{% if fiadores %}
-
-    <div
-        class="fiadores-grid"
-        id="fiadores-grid"
-    >
-
-        {% for fiador in fiadores %}
-
-            <a
-                href="{% url 'fiadores:detalle' fiador.pk %}"
-                class="fiador-card-link"
-                data-fiador-card
-                data-name="{{ fiador.nombre|lower }}"
-            >
-
-                <div
-                    class="fiador-card"
+                <a
+                    href="{% url 'fiadores:detalle' fiador.pk %}"
+                    class="fiador-card-link"
                     data-fiador-card
                     data-name="{{ fiador.nombre|lower }}"
+                    data-saldo="{{ fiador.saldo }}"
+                    data-status="{% if fiador.saldo > 0 %}deuda{% else %}aldia{% endif %}"
                 >
 
-                    <div class="fiador-card-top">
+                    <article class="fiador-card">
 
-                        <div class="fiador-avatar">
+                        <div class="fiador-card-top">
 
-                            {{ fiador.nombre|first|upper }}
+                            <div class="fiador-avatar">
+                                <span>{{ fiador.nombre|first|upper }}</span>
+                            </div>
+
+                            <div class="fiador-status-group">
+                                {% if fiador.saldo > 0 %}
+                                    <span class="status-badge status-danger">
+                                        Deuda pendiente
+                                    </span>
+                                {% else %}
+                                    <span class="status-badge status-active">
+                                        Al día ($0)
+                                    </span>
+                                {% endif %}
+
+                                {% if not fiador.activo %}
+                                    <span class="status-badge status-inactive">
+                                        Inactivo
+                                    </span>
+                                {% endif %}
+                            </div>
+
+                        </div>
+
+
+                        <div class="fiador-card-body">
+
+                            <h2 class="fiador-name" title="{{ fiador.nombre }}">
+                                {{ fiador.nombre }}
+                            </h2>
+
+                            <div class="fiador-debt-box {% if fiador.saldo > 0 %}has-debt{% else %}no-debt{% endif %}">
+                                <span class="debt-label">
+                                    {% if fiador.saldo > 0 %}Saldo deudor{% else %}Estado de cuenta{% endif %}
+                                </span>
+                                <strong class="debt-amount">
+                                    {{ fiador.saldo|peso }}
+                                </strong>
+                            </div>
 
                         </div>
 
 
-                        {% if fiador.activo %}
-
-                            <span class="status-badge status-active">
-                                Activo
-                            </span>
-
-                        {% else %}
-
-                            <span class="status-badge status-inactive">
-                                Inactivo
-                            </span>
-
-                        {% endif %}
-
-                    </div>
-
-
-                    <div class="fiador-card-body">
-
-                        <h2>
-                            {{ fiador.nombre }}
-                        </h2>
-
-
-                        <div class="fiador-debt">
-
-                            <span>
-                                Deuda actual
-                            </span>
-
-                            <strong>
-                                ${{ fiador.saldo }}
-                            </strong>
-
+                        <div class="fiador-card-footer">
+                            <span class="fiador-action-label">Ver cuenta corriente</span>
+                            <svg class="action-arrow-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                <line x1="5" y1="12" x2="19" y2="12"></line>
+                                <polyline points="12 5 19 12 12 19"></polyline>
+                            </svg>
                         </div>
 
-                    </div>
+                    </article>
+
+                </a>
+
+            {% endfor %}
+
+        </div>
 
 
-                    <div class="fiador-card-footer">
+        <div
+            class="products-live-empty"
+            id="fiadores-live-empty"
+            hidden
+        >
+            <svg class="empty-icon-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+                <circle cx="11" cy="11" r="8"></circle>
+                <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
+            </svg>
 
-                        <div class="product-card-action">
+            <strong>
+                No se encontraron fiadores
+            </strong>
 
-                            Ver cuenta
+            <span>
+                Intenta buscar con otro nombre o cambia el filtro de deuda.
+            </span>
+        </div>
 
-                            <span>
-                                →
-                            </span>
+    {% else %}
 
-                        </div>
+        <div class="products-empty">
+            <svg class="empty-icon-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path>
+                <circle cx="9" cy="7" r="4"></circle>
+            </svg>
 
-                    </div>
+            <strong>
+                Todavía no hay fiadores registrados
+            </strong>
 
-                </div>
+            <span>
+                Crea el primer fiador para poder registrar compras al crédito en el POS.
+            </span>
 
+            <a href="{% url 'fiadores:crear' %}" class="btn btn-lux" style="margin-top: 14px;">
+                <svg class="btn-svg-plus" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+                    <line x1="12" y1="5" x2="12" y2="19"></line>
+                    <line x1="5" y1="12" x2="19" y2="12"></line>
+                </svg>
+                <span>Nuevo fiador</span>
             </a>
-        {% endfor %}
+        </div>
 
-    </div>
+    {% endif %}
 
+</div>
 
-    <div
-        class="products-live-empty"
-        id="fiadores-live-empty"
-        hidden
-    >
+<script>
+function fiadoresManager() {
+    return {
+        busqueda: '',
+        filtro: 'todos',
 
-        <strong>
-            No encontramos fiadores
-        </strong>
+        init() {
+            this.aplicarFiltros();
+        },
 
-        <span>
-            Intenta buscar con otro nombre.
-        </span>
+        setFiltro(tipo) {
+            this.filtro = tipo;
+            this.aplicarFiltros();
+        },
 
-    </div>
+        aplicarFiltros() {
+            const query = this.busqueda.trim().toLowerCase();
+            const cards = document.querySelectorAll('[data-fiador-card]');
+            const emptyNotice = document.getElementById('fiadores-live-empty');
+            let visibleCount = 0;
 
-{% else %}
+            cards.forEach(card => {
+                const name = card.dataset.name || '';
+                const status = card.dataset.status || '';
 
-    <div class="products-empty">
+                const matchesQuery = !query || name.includes(query);
+                const matchesStatus = (this.filtro === 'todos') || (status === this.filtro);
 
-        <strong>
-            Todavía no hay fiadores
-        </strong>
+                if (matchesQuery && matchesStatus) {
+                    card.hidden = false;
+                    visibleCount++;
+                } else {
+                    card.hidden = true;
+                }
+            });
 
-        <span>
-            Crea uno para comenzar a registrar ventas fiadas.
-        </span>
-
-    </div>
-
-{% endif %}
+            if (emptyNotice) {
+                emptyNotice.hidden = (visibleCount > 0);
+            }
+        }
+    };
+}
+</script>
 
 {% endblock %}

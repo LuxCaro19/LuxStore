@@ -4,7 +4,7 @@ from datetime import timedelta
 from django.core.paginator import Paginator
 from django.db import transaction
 from django.db.models import Q, Sum
-from django.http import JsonResponse
+from django.http import JsonResponse, HttpResponse
 from django.shortcuts import render, get_object_or_404
 from productos.models import Producto
 from .models import Venta, DetalleVenta, CierreCaja
@@ -487,12 +487,7 @@ def cerrar_caja(request):
     )
 
 
-@admin_required
-def historial_ventas(request):
-    """
-    Módulo de historial de ventas con filtros de fecha, medio de pago y búsqueda,
-    además de KPIs dinámicos y visor de boletas térmicas integrado.
-    """
+def _obtener_queryset_ventas(request):
     hoy = timezone.localdate()
 
     q = request.GET.get("q", "").strip()
@@ -555,6 +550,28 @@ def historial_ventas(request):
     # Filtro por medio de pago
     if medio_pago in dict(Venta.MedioPago.choices):
         ventas_qs = ventas_qs.filter(medio_pago=medio_pago)
+
+    return ventas_qs, {
+        "q": q,
+        "periodo": periodo,
+        "desde_str": desde_str,
+        "hasta_str": hasta_str,
+        "medio_pago": medio_pago,
+    }
+
+
+@admin_required
+def historial_ventas(request):
+    """
+    Módulo de historial de ventas con filtros de fecha, medio de pago y búsqueda,
+    además de KPIs dinámicos y visor de boletas térmicas integrado.
+    """
+    ventas_qs, filtros = _obtener_queryset_ventas(request)
+    q = filtros["q"]
+    periodo = filtros["periodo"]
+    desde_str = filtros["desde_str"]
+    hasta_str = filtros["hasta_str"]
+    medio_pago = filtros["medio_pago"]
 
     # Métricas agregadas del queryset filtrado
     total_recaudado = ventas_qs.aggregate(total=Sum("total"))["total"] or 0
@@ -644,3 +661,207 @@ def ticket_venta(request, pk):
     }
 
     return render(request, "ventas/ticket.html", context)
+
+
+@admin_required
+def exportar_ventas_excel(request):
+    """
+    Genera y descarga un libro de Excel (.xlsx) con el reporte de ventas
+    y el detalle de productos vendidos según los filtros activos.
+    """
+    import io
+    import openpyxl
+    from openpyxl.styles import Font, PatternFill, Alignment, Border, Side
+    from openpyxl.utils import get_column_letter
+
+    ventas_qs, filtros = _obtener_queryset_ventas(request)
+    ventas = ventas_qs.prefetch_related(
+        "detalles__producto",
+        "movimientos_fiados__fiador",
+    ).order_by("-creada_en")
+
+    wb = openpyxl.Workbook()
+
+    # Tipografías y estilos
+    font_titulo = Font(name="Segoe UI", size=13, bold=True, color="1E293B")
+    font_sub = Font(name="Segoe UI", size=9, italic=True, color="64748B")
+    font_header = Font(name="Segoe UI", size=10, bold=True, color="FFFFFF")
+    font_row = Font(name="Segoe UI", size=10, color="0F172A")
+    font_bold = Font(name="Segoe UI", size=10, bold=True, color="0F172A")
+
+    fill_header = PatternFill(start_color="1E293B", end_color="1E293B", fill_type="solid")
+    fill_total = PatternFill(start_color="F1F5F9", end_color="F1F5F9", fill_type="solid")
+    fill_alt = PatternFill(start_color="F8FAFC", end_color="F8FAFC", fill_type="solid")
+
+    thin_border = Border(
+        left=Side(style="thin", color="E2E8F0"),
+        right=Side(style="thin", color="E2E8F0"),
+        top=Side(style="thin", color="E2E8F0"),
+        bottom=Side(style="thin", color="E2E8F0"),
+    )
+    double_bottom_border = Border(
+        left=Side(style="thin", color="E2E8F0"),
+        right=Side(style="thin", color="E2E8F0"),
+        top=Side(style="thin", color="E2E8F0"),
+        bottom=Side(style="double", color="0F172A"),
+    )
+
+    sub_texto = f"Generado el: {timezone.localtime().strftime('%d/%m/%Y %H:%M')}"
+    if filtros.get("desde_str") or filtros.get("hasta_str"):
+        sub_texto += f" | Rango: {filtros.get('desde_str') or 'Inicio'} al {filtros.get('hasta_str') or 'Fin'}"
+    if filtros.get("medio_pago"):
+        sub_texto += f" | Medio de Pago: {filtros.get('medio_pago')}"
+
+    # ----------------------------------------------------
+    # HOJA 1: RESUMEN DE VENTAS
+    # ----------------------------------------------------
+    ws_ventas = wb.active
+    ws_ventas.title = "Ventas"
+    ws_ventas.views.sheetView[0].showGridLines = True
+
+    ws_ventas["A1"] = "LuxStore - Reporte Histórico de Ventas"
+    ws_ventas["A1"].font = font_titulo
+    ws_ventas["A2"] = sub_texto
+    ws_ventas["A2"].font = font_sub
+
+    headers_ventas = ["Folio", "Fecha", "Hora", "Medio de Pago", "Cliente / Fiador", "Total Venta ($)"]
+    for col_idx, h in enumerate(headers_ventas, 1):
+        cell = ws_ventas.cell(row=4, column=col_idx, value=h)
+        cell.font = font_header
+        cell.fill = fill_header
+        cell.alignment = Alignment(horizontal="center" if col_idx in [1, 2, 3] else ("right" if col_idx == 6 else "left"))
+        cell.border = thin_border
+
+    row_idx = 5
+    for venta in ventas:
+        local_time = timezone.localtime(venta.creada_en)
+        fiador_nombre = ""
+        mov = venta.movimientos_fiados.first()
+        if mov and mov.fiador:
+            fiador_nombre = mov.fiador.nombre
+
+        row_data = [
+            f"#{venta.id}",
+            local_time.strftime("%d/%m/%Y"),
+            local_time.strftime("%H:%M"),
+            venta.get_medio_pago_display(),
+            fiador_nombre or "-",
+            venta.total,
+        ]
+
+        for col_idx, val in enumerate(row_data, 1):
+            cell = ws_ventas.cell(row=row_idx, column=col_idx, value=val)
+            cell.font = font_row
+            cell.border = thin_border
+            if row_idx % 2 == 0:
+                cell.fill = fill_alt
+
+            if col_idx in [1, 2, 3]:
+                cell.alignment = Alignment(horizontal="center")
+            elif col_idx == 6:
+                cell.number_format = '"$"#,##0'
+                cell.alignment = Alignment(horizontal="right")
+
+        row_idx += 1
+
+    if row_idx > 5:
+        total_cell_label = ws_ventas.cell(row=row_idx, column=5, value="TOTAL:")
+        total_cell_label.font = font_bold
+        total_cell_label.alignment = Alignment(horizontal="right")
+        total_cell_label.border = double_bottom_border
+        total_cell_label.fill = fill_total
+
+        total_cell_val = ws_ventas.cell(row=row_idx, column=6, value=f"=SUM(F5:F{row_idx-1})")
+        total_cell_val.font = font_bold
+        total_cell_val.number_format = '"$"#,##0'
+        total_cell_val.alignment = Alignment(horizontal="right")
+        total_cell_val.border = double_bottom_border
+        total_cell_val.fill = fill_total
+
+    for col in ws_ventas.columns:
+        max_len = max(len(str(cell.value or '')) for cell in col)
+        col_letter = get_column_letter(col[0].column)
+        ws_ventas.column_dimensions[col_letter].width = max(max_len + 4, 12)
+
+    # ----------------------------------------------------
+    # HOJA 2: DETALLE DE PRODUCTOS VENDIDOS
+    # ----------------------------------------------------
+    ws_detalles = wb.create_sheet(title="Detalle Productos")
+    ws_detalles.views.sheetView[0].showGridLines = True
+
+    ws_detalles["A1"] = "LuxStore - Detalle de Productos Vendidos"
+    ws_detalles["A1"].font = font_titulo
+    ws_detalles["A2"] = sub_texto
+    ws_detalles["A2"].font = font_sub
+
+    headers_detalles = ["Folio Venta", "Fecha", "Código Barras", "Producto", "Cantidad", "Precio Unitario ($)", "Subtotal ($)"]
+    for col_idx, h in enumerate(headers_detalles, 1):
+        cell = ws_detalles.cell(row=4, column=col_idx, value=h)
+        cell.font = font_header
+        cell.fill = fill_header
+        cell.alignment = Alignment(horizontal="center" if col_idx in [1, 2, 5] else ("right" if col_idx in [6, 7] else "left"))
+        cell.border = thin_border
+
+    det_idx = 5
+    for venta in ventas:
+        local_time = timezone.localtime(venta.creada_en)
+        for item in venta.detalles.all():
+            det_data = [
+                f"#{venta.id}",
+                local_time.strftime("%d/%m/%Y"),
+                item.producto.codigo_barras or "-",
+                item.producto.nombre,
+                item.cantidad,
+                item.precio_unitario,
+                item.subtotal,
+            ]
+
+            for col_idx, val in enumerate(det_data, 1):
+                cell = ws_detalles.cell(row=det_idx, column=col_idx, value=val)
+                cell.font = font_row
+                cell.border = thin_border
+                if det_idx % 2 == 0:
+                    cell.fill = fill_alt
+
+                if col_idx in [1, 2]:
+                    cell.alignment = Alignment(horizontal="center")
+                elif col_idx == 5:
+                    cell.number_format = '#,##0'
+                    cell.alignment = Alignment(horizontal="center")
+                elif col_idx in [6, 7]:
+                    cell.number_format = '"$"#,##0'
+                    cell.alignment = Alignment(horizontal="right")
+
+            det_idx += 1
+
+    if det_idx > 5:
+        total_det_label = ws_detalles.cell(row=det_idx, column=6, value="TOTAL:")
+        total_det_label.font = font_bold
+        total_det_label.alignment = Alignment(horizontal="right")
+        total_det_label.border = double_bottom_border
+        total_det_label.fill = fill_total
+
+        total_det_val = ws_detalles.cell(row=det_idx, column=7, value=f"=SUM(G5:G{det_idx-1})")
+        total_det_val.font = font_bold
+        total_det_val.number_format = '"$"#,##0'
+        total_det_val.alignment = Alignment(horizontal="right")
+        total_det_val.border = double_bottom_border
+        total_det_val.fill = fill_total
+
+    for col in ws_detalles.columns:
+        max_len = max(len(str(cell.value or '')) for cell in col)
+        col_letter = get_column_letter(col[0].column)
+        ws_detalles.column_dimensions[col_letter].width = max(max_len + 4, 12)
+
+    # Preparar respuesta HTTP con el archivo XLSX
+    buffer = io.BytesIO()
+    wb.save(buffer)
+    buffer.seek(0)
+
+    filename = f"LuxStore_Ventas_{timezone.localdate().strftime('%Y%m%d')}.xlsx"
+    response = HttpResponse(
+        buffer.getvalue(),
+        content_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+    )
+    response["Content-Disposition"] = f'attachment; filename="{filename}"'
+    return response

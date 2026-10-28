@@ -1,7 +1,7 @@
 import json
 
 from django.db import transaction
-from django.db.models import Q
+from django.db.models import Q, Sum
 from django.http import JsonResponse
 from django.shortcuts import get_object_or_404, redirect, render
 from django.utils import timezone
@@ -23,12 +23,25 @@ def lista_fiadores(request):
             Q(nombre__icontains=busqueda)
         )
 
+    # Calcular KPIs de cartera y deuda
+    total_cargos = MovimientoFiado.objects.filter(tipo=MovimientoFiado.Tipo.CARGO).aggregate(t=Sum("monto"))["t"] or 0
+    total_abonos = MovimientoFiado.objects.filter(tipo=MovimientoFiado.Tipo.ABONO).aggregate(t=Sum("monto"))["t"] or 0
+    deuda_total = max(0, total_cargos - total_abonos)
+
+    todos_fiadores = Fiador.objects.all()
+    clientes_con_deuda = sum(1 for f in todos_fiadores if f.saldo > 0)
+    clientes_al_dia = sum(1 for f in todos_fiadores if f.saldo <= 0)
+
     return render(
         request,
         "fiadores/lista.html",
         {
             "fiadores": fiadores,
             "busqueda": busqueda,
+            "deuda_total": deuda_total,
+            "clientes_con_deuda": clientes_con_deuda,
+            "clientes_al_dia": clientes_al_dia,
+            "total_fiadores": todos_fiadores.count(),
         },
     )
 

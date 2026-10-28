@@ -7,7 +7,11 @@ Gestión de usuarios | LuxStore
 
 {% block content %}
 
-<div class="users-page-wrapper">
+<div
+    class="users-page-wrapper"
+    x-data="usuariosManager()"
+    x-init="init()"
+>
 
     <!-- ENCABEZADO DE PÁGINA -->
     <div class="page-header">
@@ -22,23 +26,171 @@ Gestión de usuarios | LuxStore
 
         <div>
             <a href="{% url 'usuarios:crear' %}" class="btn btn-lux btn-user-add">
-                + Nuevo usuario
+                <svg class="btn-svg-plus" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+                    <line x1="12" y1="5" x2="12" y2="19"></line>
+                    <line x1="5" y1="12" x2="19" y2="12"></line>
+                </svg>
+                <span>Nuevo usuario</span>
             </a>
         </div>
     </div>
 
+    <!-- TARJETAS DE RESUMEN (KPIS) -->
+    <div class="inventory-summary users-summary">
+
+        <div
+            class="inventory-summary-card"
+            :class="{ 'is-active-filter': filtro === 'todos' }"
+            @click="setFiltro('todos')"
+            title="Mostrar todos los usuarios"
+        >
+            <div class="summary-card-header">
+                <span class="summary-label">Total usuarios</span>
+                <span class="summary-icon icon-blue">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path>
+                        <circle cx="9" cy="7" r="4"></circle>
+                        <path d="M23 21v-2a4 4 0 0 0-3-3.87"></path>
+                        <path d="M16 3.13a4 4 0 0 1 0 7.75"></path>
+                    </svg>
+                </span>
+            </div>
+            <strong class="summary-value">{{ total_usuarios }}</strong>
+            <small class="summary-hint">Cuentas registradas en el sistema</small>
+        </div>
+
+        <div
+            class="inventory-summary-card"
+            :class="{ 'is-active-filter': filtro === 'admin' }"
+            @click="setFiltro('admin')"
+            title="Filtrar administradores con acceso total"
+        >
+            <div class="summary-card-header">
+                <span class="summary-label">Administradores</span>
+                <span class="summary-icon icon-purple">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"></path>
+                    </svg>
+                </span>
+            </div>
+            <strong class="summary-value">{{ total_admins }}</strong>
+            <small class="summary-hint">Acceso completo y configuración</small>
+        </div>
+
+        <div
+            class="inventory-summary-card"
+            :class="{ 'is-active-filter': filtro === 'visita' }"
+            @click="setFiltro('visita')"
+            title="Filtrar personal de caja"
+        >
+            <div class="summary-card-header">
+                <span class="summary-label">Cajeros (Visita)</span>
+                <span class="summary-icon icon-amber">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <rect x="2" y="3" width="20" height="14" rx="2" ry="2"></rect>
+                        <line x1="8" y1="21" x2="16" y2="21"></line>
+                        <line x1="12" y1="17" x2="12" y2="21"></line>
+                    </svg>
+                </span>
+            </div>
+            <strong class="summary-value">{{ total_visitas }}</strong>
+            <small class="summary-hint">Operadores del Punto de Venta</small>
+        </div>
+
+        <div
+            class="inventory-summary-card card-success"
+            :class="{ 'is-active-filter': filtro === 'activo' }"
+            @click="setFiltro('activo')"
+            title="Filtrar cuentas activas"
+        >
+            <div class="summary-card-header">
+                <span class="summary-label">Cuentas activas</span>
+                <span class="summary-icon icon-green">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"></path>
+                        <polyline points="22 4 12 14.01 9 11.01"></polyline>
+                    </svg>
+                </span>
+            </div>
+            <strong class="summary-value text-green">{{ total_activos }}</strong>
+            <small class="summary-hint">Personal con inicio de sesión habilitado</small>
+        </div>
+
+    </div>
+
+    <!-- CONTROLES: BUSCADOR Y PESTAÑAS DE FILTRADO -->
+    <div class="inventory-controls-bar">
+
+        <div class="inventory-search-wrap">
+            <svg class="search-icon-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <circle cx="11" cy="11" r="8"></circle>
+                <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
+            </svg>
+            <input
+                type="search"
+                x-model="busqueda"
+                @input="aplicarFiltros()"
+                class="inventory-search-input"
+                placeholder="Buscar por usuario o nombre..."
+                autocomplete="off"
+            >
+            <button
+                type="button"
+                x-show="busqueda"
+                @click="busqueda = ''; aplicarFiltros()"
+                class="search-clear-btn"
+                title="Limpiar búsqueda"
+            >
+                ✕
+            </button>
+        </div>
+
+        <div class="inventory-filter-pills">
+            <button
+                type="button"
+                class="filter-pill"
+                :class="{ 'active': filtro === 'todos' }"
+                @click="setFiltro('todos')"
+            >
+                Todos
+                <span class="pill-count">{{ total_usuarios }}</span>
+            </button>
+
+            <button
+                type="button"
+                class="filter-pill"
+                :class="{ 'active': filtro === 'admin' }"
+                @click="setFiltro('admin')"
+            >
+                Administradores
+                <span class="pill-count">{{ total_admins }}</span>
+            </button>
+
+            <button
+                type="button"
+                class="filter-pill"
+                :class="{ 'active': filtro === 'visita' }"
+                @click="setFiltro('visita')"
+            >
+                Cajeros (Visita)
+                <span class="pill-count">{{ total_visitas }}</span>
+            </button>
+
+            <button
+                type="button"
+                class="filter-pill pill-success"
+                :class="{ 'active': filtro === 'activo' }"
+                @click="setFiltro('activo')"
+            >
+                Activos
+                <span class="pill-count">{{ total_activos }}</span>
+            </button>
+        </div>
+
+    </div>
+
     <!-- TARJETA CON LISTADO DE USUARIOS -->
     <section class="users-card">
-
-        <div class="users-card-header">
-            <div>
-                <h2>Usuarios del sistema</h2>
-                <p>Personal registrado con acceso a la plataforma.</p>
-            </div>
-            <div class="users-count-badge">
-                Total: <strong>{{ usuarios.count }}</strong>
-            </div>
-        </div>
 
         <div class="table-responsive">
             <table class="users-table">
@@ -52,15 +204,20 @@ Gestión de usuarios | LuxStore
                         <th class="text-end">Acciones</th>
                     </tr>
                 </thead>
-                <tbody>
+                <tbody id="users-table-body">
                     {% for u in usuarios %}
-                        <tr>
+                        <tr
+                            data-user-row
+                            data-name="{{ u.username|lower }} {{ u.first_name|lower }}"
+                            data-role="{% if u.is_superuser or u.perfil.rol == 'ADMIN' %}admin{% else %}visita{% endif %}"
+                            data-status="{% if u.is_active %}activo{% else %}inactivo{% endif %}"
+                        >
                             <td>
                                 <div class="user-cell-name">
                                     <span class="user-avatar-badge">
                                         {{ u.username|first|upper }}
                                     </span>
-                                    <strong>{{ u.username }}</strong>
+                                    <strong class="user-cell-username">{{ u.username }}</strong>
                                     {% if u == request.user %}
                                         <span class="user-tag-current">Tú</span>
                                     {% endif %}
@@ -68,17 +225,25 @@ Gestión de usuarios | LuxStore
                             </td>
 
                             <td>
-                                {{ u.first_name|default:"—" }}
+                                <span class="user-cell-realname">{{ u.first_name|default:"—" }}</span>
                             </td>
 
                             <td>
                                 {% if u.is_superuser or u.perfil.rol == "ADMIN" %}
                                     <span class="badge-role badge-role-admin">
-                                        🛡️ Administrador
+                                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="badge-svg">
+                                            <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"></path>
+                                        </svg>
+                                        <span>Administrador</span>
                                     </span>
                                 {% else %}
                                     <span class="badge-role badge-role-visita">
-                                        🛒 Visita (Caja)
+                                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="badge-svg">
+                                            <rect x="2" y="3" width="20" height="14" rx="2" ry="2"></rect>
+                                            <line x1="8" y1="21" x2="16" y2="21"></line>
+                                            <line x1="12" y1="17" x2="12" y2="21"></line>
+                                        </svg>
+                                        <span>Visita (Caja)</span>
                                     </span>
                                 {% endif %}
                             </td>
@@ -86,11 +251,18 @@ Gestión de usuarios | LuxStore
                             <td>
                                 {% if u.is_active %}
                                     <span class="badge-status badge-status-active">
-                                        ✓ Activo
+                                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" class="badge-svg">
+                                            <polyline points="20 6 9 17 4 12"></polyline>
+                                        </svg>
+                                        <span>Activo</span>
                                     </span>
                                 {% else %}
                                     <span class="badge-status badge-status-inactive">
-                                        ✕ Desactivado
+                                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" class="badge-svg">
+                                            <line x1="18" y1="6" x2="6" y2="18"></line>
+                                            <line x1="6" y1="6" x2="18" y2="18"></line>
+                                        </svg>
+                                        <span>Desactivado</span>
                                     </span>
                                 {% endif %}
                             </td>
@@ -110,25 +282,25 @@ Gestión de usuarios | LuxStore
                                         class="btn-action-edit"
                                         title="Editar datos y contraseña"
                                     >
-                                        ✏️ Editar
+                                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width: 13px; height: 13px; margin-right: 5px;">
+                                            <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path>
+                                            <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path>
+                                        </svg>
+                                        <span>Editar</span>
                                     </a>
 
                                     {% if u != request.user %}
-                                        <form
-                                            method="post"
-                                            action="{% url 'usuarios:eliminar' u.pk %}"
-                                            style="display: inline;"
-                                            onsubmit="return confirm('¿Estás seguro de eliminar al usuario {{ u.username }}? Esta acción no se puede deshacer.');"
+                                        <button
+                                            type="button"
+                                            class="btn-action-delete"
+                                            title="Eliminar usuario"
+                                            @click="confirmarEliminar('{{ u.pk }}', '{{ u.username|escapejs }}')"
                                         >
-                                            {% csrf_token %}
-                                            <button
-                                                type="submit"
-                                                class="btn-action-delete"
-                                                title="Eliminar usuario"
-                                            >
-                                                🗑️
-                                            </button>
-                                        </form>
+                                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width: 14px; height: 14px;">
+                                                <polyline points="3 6 5 6 21 6"></polyline>
+                                                <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path>
+                                            </svg>
+                                        </button>
                                     {% endif %}
                                 </div>
                             </td>
@@ -136,7 +308,7 @@ Gestión de usuarios | LuxStore
                     {% empty %}
                         <tr>
                             <td colspan="6" class="text-center py-4 text-muted">
-                                No hay otros usuarios registrados en el sistema.
+                                No hay usuarios registrados en el sistema.
                             </td>
                         </tr>
                     {% endfor %}
@@ -144,8 +316,137 @@ Gestión de usuarios | LuxStore
             </table>
         </div>
 
+        <!-- AVISO DE BÚSQUEDA SIN RESULTADOS -->
+        <div
+            class="products-live-empty"
+            id="users-live-empty"
+            hidden
+        >
+            <svg class="empty-icon-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+                <circle cx="11" cy="11" r="8"></circle>
+                <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
+            </svg>
+            <strong>No se encontraron usuarios</strong>
+            <span>Prueba ajustando el término de búsqueda o el filtro de rol.</span>
+        </div>
+
     </section>
 
+    <!-- MODAL DE CONFIRMACIÓN DE ELIMINACIÓN -->
+    <div
+        class="modal-backdrop"
+        x-show="modalEliminar"
+        x-transition.opacity
+        x-cloak
+        style="display: none;"
+        @click.self="modalEliminar = false"
+        @keydown.escape.window="modalEliminar = false"
+    >
+        <div class="restock-modal-card" style="max-width: 440px;">
+            <div class="restock-modal-header">
+                <div>
+                    <h3 class="modal-title" style="color: #dc2626;">Eliminar usuario</h3>
+                    <p class="modal-subtitle">Esta acción es permanente y no se puede deshacer.</p>
+                </div>
+                <button
+                    type="button"
+                    class="btn-modal-close"
+                    @click="modalEliminar = false"
+                >
+                    ✕
+                </button>
+            </div>
+
+            <div class="restock-modal-body">
+                <p style="font-size: 14px; color: #475569; margin: 0; line-height: 1.5;">
+                    ¿Estás seguro de que deseas eliminar permanentemente al usuario <strong x-text="usuarioAEliminarNombre" style="color: #0f172a;"></strong>?
+                </p>
+            </div>
+
+            <form :action="'/usuarios/' + usuarioAEliminarId + '/eliminar/'" method="post">
+                {% csrf_token %}
+                <div class="restock-modal-footer">
+                    <button
+                        type="button"
+                        class="btn btn-cancel"
+                        @click="modalEliminar = false"
+                    >
+                        Cancelar
+                    </button>
+                    <button
+                        type="submit"
+                        class="btn btn-danger"
+                        style="background: #dc2626; border-color: #dc2626; color: #ffffff; padding: 0 18px; height: 38px; border-radius: 8px; font-weight: 600; font-size: 13px;"
+                    >
+                        Sí, eliminar
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+
 </div>
+
+<script>
+function usuariosManager() {
+    return {
+        busqueda: '',
+        filtro: 'todos',
+        modalEliminar: false,
+        usuarioAEliminarId: null,
+        usuarioAEliminarNombre: '',
+
+        init() {
+            this.aplicarFiltros();
+        },
+
+        setFiltro(tipo) {
+            this.filtro = tipo;
+            this.aplicarFiltros();
+        },
+
+        confirmarEliminar(id, nombre) {
+            this.usuarioAEliminarId = id;
+            this.usuarioAEliminarNombre = nombre;
+            this.modalEliminar = true;
+        },
+
+        aplicarFiltros() {
+            const query = this.busqueda.trim().toLowerCase();
+            const rows = document.querySelectorAll('[data-user-row]');
+            const emptyNotice = document.getElementById('users-live-empty');
+            let visibleCount = 0;
+
+            rows.forEach(row => {
+                const name = row.dataset.name || '';
+                const role = row.dataset.role || '';
+                const status = row.dataset.status || '';
+
+                const matchesQuery = !query || name.includes(query);
+
+                let matchesFilter = true;
+                if (this.filtro === 'admin') {
+                    matchesFilter = (role === 'admin');
+                } else if (this.filtro === 'visita') {
+                    matchesFilter = (role === 'visita');
+                } else if (this.filtro === 'activo') {
+                    matchesFilter = (status === 'activo');
+                }
+
+                if (matchesQuery && matchesFilter) {
+                    row.hidden = false;
+                    visibleCount++;
+                } else {
+                    row.hidden = true;
+                }
+            });
+
+            if (emptyNotice) {
+                emptyNotice.hidden = (visibleCount > 0);
+            }
+        }
+    };
+}
+</script>
 
 {% endblock %}

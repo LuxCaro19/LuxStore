@@ -1,4 +1,5 @@
 {% extends "base.html" %}
+{% load ventas_extras %}
 
 {% block title %}
 Inventario | LuxStore
@@ -6,219 +7,671 @@ Inventario | LuxStore
 
 {% block content %}
 
-<div class="page-header">
+<div
+    class="inventory-page"
+    x-data="inventarioManager()"
+    x-init="init()"
+>
 
-    <div>
-        <h1 class="page-title">
-            Inventario
-        </h1>
+    <!-- ENCABEZADO DE PÁGINA -->
+    <div class="page-header">
+        <div>
+            <h1 class="page-title">Inventario y Reposición</h1>
+            <p class="page-subtitle">Control de existencias, niveles críticos y recepción rápida de mercadería.</p>
+        </div>
 
-        <p class="page-subtitle">
-            Revisa las existencias y niveles mínimos de tus productos.
-        </p>
-    </div>
-
-</div>
-
-
-<!-- RESUMEN -->
-<div class="inventory-summary">
-
-    <div class="inventory-summary-card">
-
-        <span>
-            Productos activos
-        </span>
-
-        <strong>
-            {{ total_productos }}
-        </strong>
-
-        <small>
-            Productos disponibles para venta
-        </small>
-
-    </div>
-
-
-    <div class="inventory-summary-card">
-
-        <span>
-            Stock bajo
-        </span>
-
-        <strong>
-            {{ productos_quiebre }}
-        </strong>
-
-        <small>
-            Productos en nivel de reposición
-        </small>
-
-    </div>
-
-
-    <div class="inventory-summary-card">
-
-        <span>
-            Sin stock
-        </span>
-
-        <strong>
-            {{ productos_sin_stock }}
-        </strong>
-
-        <small>
-            Productos agotados
-        </small>
-
-    </div>
-
-</div>
-
-
-<!-- BUSCADOR -->
-<form method="get" class="inventory-search">
-
-    <input
-        type="search"
-        name="q"
-        value="{{ busqueda }}"
-        class="search-box"
-        placeholder="Buscar por nombre o código de barras..."
-        autocomplete="off"
-    >
-
-</form>
-
-
-<!-- PRODUCTOS -->
-{% if productos %}
-
-    <div class="inventory-grid">
-
-        {% for producto in productos %}
-
+        <div class="header-action-buttons">
             <a
-                href="{% url 'productos:editar' producto.pk %}"
-                class="inventory-card"
+                href="{% url 'productos:exportar_excel' %}"
+                class="btn btn-lux-excel"
+                title="Descargar inventario valorizado en Excel (.xlsx)"
             >
-
-                <div class="inventory-card-top">
-
-                    <div class="inventory-product-image">
-                        P
-                    </div>
-
-
-                    {% if producto.stock_actual == 0 %}
-
-                        <span class="inventory-status inventory-status-empty">
-                            Sin stock
-                        </span>
-
-                    {% elif producto.stock_actual <= producto.stock_minimo %}
-
-                        <span class="inventory-status inventory-status-low">
-                            Stock bajo
-                        </span>
-
-                    {% else %}
-
-                        <span class="inventory-status inventory-status-ok">
-                            Disponible
-                        </span>
-
-                    {% endif %}
-
-                </div>
-
-
-                <div class="inventory-card-body">
-
-                    <h2>
-                        {{ producto.nombre }}
-                    </h2>
-
-                    <span class="inventory-code">
-
-                        {% if producto.codigo_barras %}
-                            {{ producto.codigo_barras }}
-                        {% else %}
-                            Sin código de barras
-                        {% endif %}
-
-                    </span>
-
-
-                    <div class="inventory-stock-data">
-
-                        <div>
-
-                            <span>
-                                Stock actual
-                            </span>
-
-                            <strong>
-                                {{ producto.stock_actual }}
-                            </strong>
-
-                        </div>
-
-
-                        <div>
-
-                            <span>
-                                Stock mínimo
-                            </span>
-
-                            <strong>
-                                {{ producto.stock_minimo }}
-                            </strong>
-
-                        </div>
-
-                    </div>
-
-
-                    {% if producto.stock_actual <= producto.stock_minimo %}
-
-                        <div class="inventory-warning">
-
-                            <span></span>
-
-                            {% if producto.stock_actual == 0 %}
-                                Producto agotado.
-                            {% else %}
-                                El producto alcanzó su nivel mínimo.
-                            {% endif %}
-
-                        </div>
-
-                    {% endif %}
-
-                </div>
-
+                <svg class="excel-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
+                    <polyline points="14 2 14 8 20 8"></polyline>
+                    <line x1="8" y1="13" x2="16" y2="13"></line>
+                    <line x1="8" y1="17" x2="16" y2="17"></line>
+                    <polyline points="10 9 9 9 8 9"></polyline>
+                </svg>
+                <span>Exportar inventario</span>
             </a>
 
-        {% endfor %}
+            <a href="{% url 'productos:crear' %}" class="btn btn-lux">
+                <svg class="btn-svg-plus" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+                    <line x1="12" y1="5" x2="12" y2="19"></line>
+                    <line x1="5" y1="12" x2="19" y2="12"></line>
+                </svg>
+                <span>Nuevo producto</span>
+            </a>
+        </div>
+    </div>
+
+    <!-- TARJETAS DE RESUMEN (KPIs) QUE FUNCIONAN COMO FILTROS -->
+    <div class="inventory-summary">
+
+        <div
+            class="inventory-summary-card"
+            :class="{ 'is-active-filter': filtroEstado === 'todos' }"
+            @click="setFiltro('todos')"
+            title="Mostrar todos los productos"
+        >
+            <div class="summary-card-header">
+                <span class="summary-label">Total de productos</span>
+                <span class="summary-icon icon-blue">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"></path>
+                    </svg>
+                </span>
+            </div>
+            <strong class="summary-value" x-text="kpis.total">{{ total_productos }}</strong>
+            <small class="summary-hint">Catálogo activo en tienda</small>
+        </div>
+
+        <div
+            class="inventory-summary-card card-warning"
+            :class="{ 'is-active-filter': filtroEstado === 'low' }"
+            @click="setFiltro('low')"
+            title="Filtrar productos con stock bajo"
+        >
+            <div class="summary-card-header">
+                <span class="summary-label">Stock bajo</span>
+                <span class="summary-icon icon-amber">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"></path>
+                        <line x1="12" y1="9" x2="12" y2="13"></line>
+                        <line x1="12" y1="17" x2="12.01" y2="17"></line>
+                    </svg>
+                </span>
+            </div>
+            <strong class="summary-value text-amber" x-text="kpis.quiebre">{{ productos_quiebre }}</strong>
+            <small class="summary-hint">En nivel mínimo de reposición</small>
+        </div>
+
+        <div
+            class="inventory-summary-card card-danger"
+            :class="{ 'is-active-filter': filtroEstado === 'empty' }"
+            @click="setFiltro('empty')"
+            title="Filtrar productos agotados"
+        >
+            <div class="summary-card-header">
+                <span class="summary-label">Sin stock</span>
+                <span class="summary-icon icon-red">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <circle cx="12" cy="12" r="10"></circle>
+                        <line x1="15" y1="9" x2="9" y2="15"></line>
+                        <line x1="9" y1="9" x2="15" y2="15"></line>
+                    </svg>
+                </span>
+            </div>
+            <strong class="summary-value text-red" x-text="kpis.sinStock">{{ productos_sin_stock }}</strong>
+            <small class="summary-hint">Productos agotados en tienda</small>
+        </div>
 
     </div>
 
-{% else %}
+    <!-- BARRA DE CONTROLES: BUSCADOR Y PESTAÑAS DE FILTRO -->
+    <div class="inventory-controls-bar">
 
-    <div class="products-empty">
+        <div class="inventory-search-wrap">
+            <svg class="search-icon-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <circle cx="11" cy="11" r="8"></circle>
+                <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
+            </svg>
+            <input
+                type="search"
+                x-model="busqueda"
+                @input="aplicarFiltros()"
+                class="inventory-search-input"
+                placeholder="Buscar por nombre o escanear código de barras..."
+                autocomplete="off"
+            >
+            <button
+                type="button"
+                x-show="busqueda"
+                @click="busqueda = ''; aplicarFiltros()"
+                class="search-clear-btn"
+                title="Limpiar búsqueda"
+            >
+                ✕
+            </button>
+        </div>
 
-        <strong>
-            No encontramos productos
-        </strong>
+        <div class="inventory-filter-pills">
+            <button
+                type="button"
+                class="filter-pill"
+                :class="{ 'active': filtroEstado === 'todos' }"
+                @click="setFiltro('todos')"
+            >
+                Todos
+                <span class="pill-count" x-text="kpis.total">{{ total_productos }}</span>
+            </button>
 
-        <span>
-            Intenta buscar con otro nombre o código.
-        </span>
+            <button
+                type="button"
+                class="filter-pill pill-warning"
+                :class="{ 'active': filtroEstado === 'low' }"
+                @click="setFiltro('low')"
+            >
+                Stock bajo
+                <span class="pill-count" x-text="kpis.quiebre">{{ productos_quiebre }}</span>
+            </button>
+
+            <button
+                type="button"
+                class="filter-pill pill-danger"
+                :class="{ 'active': filtroEstado === 'empty' }"
+                @click="setFiltro('empty')"
+            >
+                Agotados
+                <span class="pill-count" x-text="kpis.sinStock">{{ productos_sin_stock }}</span>
+            </button>
+
+            <button
+                type="button"
+                class="filter-pill pill-success"
+                :class="{ 'active': filtroEstado === 'ok' }"
+                @click="setFiltro('ok')"
+            >
+                Disponibles
+            </button>
+        </div>
 
     </div>
 
-{% endif %}
+    <!-- TOAST DE ÉXITO -->
+    <div
+        x-show="toastMensaje"
+        x-transition:enter="toast-enter"
+        x-transition:leave="toast-leave"
+        class="inventory-toast"
+        style="display: none;"
+    >
+        <svg class="toast-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"></path>
+            <polyline points="22 4 12 14.01 9 11.01"></polyline>
+        </svg>
+        <span x-text="toastMensaje"></span>
+    </div>
+
+    <!-- LISTADO DE PRODUCTOS (GRID) -->
+    {% if productos %}
+
+        <div class="inventory-grid" id="inventory-grid">
+
+            {% for producto in productos %}
+
+                <article
+                    class="inventory-card"
+                    data-product-card
+                    data-id="{{ producto.id }}"
+                    data-name="{{ producto.nombre|lower }}"
+                    data-code="{{ producto.codigo_barras|default:''|lower }}"
+                    data-stock="{{ producto.stock_actual }}"
+                    data-min="{{ producto.stock_minimo }}"
+                    data-status="{% if producto.stock_actual == 0 %}empty{% elif producto.stock_actual <= producto.stock_minimo %}low{% else %}ok{% endif %}"
+                >
+                    <!-- CABECERA -->
+                    <div class="inventory-card-top">
+                        <div class="inventory-product-avatar">
+                            <svg class="product-avatar-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+                                <path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"></path>
+                                <polyline points="3.27 6.96 12 12.01 20.73 6.96"></polyline>
+                                <line x1="12" y1="22.08" x2="12" y2="12"></line>
+                            </svg>
+                        </div>
+
+                        <div class="inventory-status-wrap">
+                            {% if producto.stock_actual == 0 %}
+                                <span class="status-badge status-danger" data-badge>
+                                    Sin stock
+                                </span>
+                            {% elif producto.stock_actual <= producto.stock_minimo %}
+                                <span class="status-badge status-warning" data-badge>
+                                    Stock bajo
+                                </span>
+                            {% else %}
+                                <span class="status-badge status-active" data-badge>
+                                    Disponible
+                                </span>
+                            {% endif %}
+                        </div>
+                    </div>
+
+                    <!-- CUERPO -->
+                    <div class="inventory-card-body">
+                        <h2 class="inventory-product-name" title="{{ producto.nombre }}">
+                            {{ producto.nombre }}
+                        </h2>
+
+                        <div class="product-barcode-chip">
+                            {% if producto.codigo_barras %}
+                                <svg class="barcode-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                    <line x1="3" y1="5" x2="3" y2="19"></line>
+                                    <line x1="6" y1="5" x2="6" y2="19"></line>
+                                    <line x1="10" y1="5" x2="10" y2="19"></line>
+                                    <line x1="14" y1="5" x2="14" y2="19"></line>
+                                    <line x1="17" y1="5" x2="17" y2="19"></line>
+                                    <line x1="21" y1="5" x2="21" y2="19"></line>
+                                </svg>
+                                <code>{{ producto.codigo_barras }}</code>
+                            {% else %}
+                                <span class="no-barcode">Sin código de barras</span>
+                            {% endif %}
+                        </div>
+
+                        <!-- MÉTRICAS DE STOCK -->
+                        <div class="inventory-stock-data">
+                            <div class="stock-box-actual {% if producto.stock_actual == 0 %}is-out{% elif producto.stock_actual <= producto.stock_minimo %}is-low{% endif %}" data-actual-box>
+                                <span class="stock-label">Stock disponible</span>
+                                <strong class="stock-number">
+                                    <span data-stock-display>{{ producto.stock_actual }}</span>
+                                    <small class="stock-unit">unid.</small>
+                                </strong>
+                            </div>
+
+                            <div class="stock-box-min">
+                                <span class="stock-label">Nivel mínimo</span>
+                                <strong class="stock-number">
+                                    {{ producto.stock_minimo }}
+                                    <small class="stock-unit">unid.</small>
+                                </strong>
+                            </div>
+                        </div>
+
+                        <!-- BARRA VISUAL DE NIVEL -->
+                        <div class="stock-progress-track" title="Nivel de existencias">
+                            <div
+                                class="stock-progress-bar {% if producto.stock_actual == 0 %}bar-empty{% elif producto.stock_actual <= producto.stock_minimo %}bar-low{% else %}bar-ok{% endif %}"
+                                data-progress-bar
+                                style="width: {% if producto.stock_actual == 0 %}0%{% elif producto.stock_minimo > 0 and producto.stock_actual <= producto.stock_minimo %}40%{% else %}100%{% endif %};"
+                            ></div>
+                        </div>
+                    </div>
+
+                    <!-- ACCIONES: BOTÓN REPONER STOCK + EDITAR FICHA -->
+                    <div class="inventory-card-footer">
+                        <button
+                            type="button"
+                            class="btn-quick-restock"
+                            @click="abrirModal({{ producto.id }}, '{{ producto.nombre|escapejs }}', {{ producto.stock_actual }}, {{ producto.stock_minimo }})"
+                            title="Ingresar o sumar mercadería"
+                        >
+                            <svg class="restock-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+                                <line x1="12" y1="5" x2="12" y2="19"></line>
+                                <line x1="5" y1="12" x2="19" y2="12"></line>
+                            </svg>
+                            <span>+ Reponer</span>
+                        </button>
+
+                        <a
+                            href="{% url 'productos:editar' producto.pk %}"
+                            class="inventory-edit-link"
+                            title="Editar ficha completa"
+                        >
+                            <span>Ficha</span>
+                            <svg class="action-arrow-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                <line x1="5" y1="12" x2="19" y2="12"></line>
+                                <polyline points="12 5 19 12 12 19"></polyline>
+                            </svg>
+                        </a>
+                    </div>
+                </article>
+
+            {% endfor %}
+
+        </div>
+
+        <div class="products-live-empty" id="inventory-live-empty" hidden>
+            <svg class="empty-icon-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+                <circle cx="11" cy="11" r="8"></circle>
+                <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
+            </svg>
+            <strong>No se encontraron productos</strong>
+            <span>Intenta con otro término o cambia el filtro de existencias.</span>
+        </div>
+
+    {% else %}
+
+        <div class="products-empty">
+            <svg class="empty-icon-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"></path>
+                <polyline points="3.27 6.96 12 12.01 20.73 6.96"></polyline>
+                <line x1="12" y1="22.08" x2="12" y2="12"></line>
+            </svg>
+            <strong>No hay productos en inventario</strong>
+            <span>Comienza agregando tu primer producto al sistema.</span>
+            <a href="{% url 'productos:crear' %}" class="btn btn-lux" style="margin-top: 14px;">
+                + Nuevo producto
+            </a>
+        </div>
+
+    {% endif %}
+
+
+    <!-- MODAL DE REPOSICIÓN RÁPIDA DE STOCK -->
+    <div
+        x-show="modalAbierto"
+        x-transition.opacity
+        class="modal-backdrop"
+        style="display: none;"
+        @keydown.escape.window="cerrarModal()"
+    >
+        <div
+            class="restock-modal-card"
+            @click.outside="cerrarModal()"
+        >
+            <!-- CABECERA MODAL -->
+            <div class="restock-modal-header">
+                <div>
+                    <h3 class="modal-title">Recepción de mercadería</h3>
+                    <p class="modal-subtitle" x-text="productoSeleccionado ? productoSeleccionado.nombre : ''"></p>
+                </div>
+                <button
+                    type="button"
+                    class="btn-modal-close"
+                    @click="cerrarModal()"
+                    title="Cerrar ventana"
+                >
+                    ✕
+                </button>
+            </div>
+
+            <!-- CUERPO MODAL -->
+            <div class="restock-modal-body">
+
+                <!-- INFO DE STOCK ACTUAL -->
+                <div class="restock-info-grid">
+                    <div class="restock-info-item">
+                        <span>Stock en tienda</span>
+                        <strong x-text="productoSeleccionado ? productoSeleccionado.stockActual + ' unid.' : ''"></strong>
+                    </div>
+                    <div class="restock-info-item">
+                        <span>Stock mínimo</span>
+                        <strong x-text="productoSeleccionado ? productoSeleccionado.stockMinimo + ' unid.' : ''"></strong>
+                    </div>
+                </div>
+
+                <!-- SELECTOR DE CANTIDAD RÁPIDA -->
+                <div class="form-group mt-3">
+                    <label class="lux-label">Unidades que llegaron (+)</label>
+                    
+                    <div class="quick-add-buttons">
+                        <button type="button" class="btn-quick-num" @click="sumarCantidad(1)">+1</button>
+                        <button type="button" class="btn-quick-num" @click="sumarCantidad(5)">+5</button>
+                        <button type="button" class="btn-quick-num" @click="sumarCantidad(10)">+10</button>
+                        <button type="button" class="btn-quick-num" @click="sumarCantidad(24)">+24</button>
+                        <button type="button" class="btn-quick-num" @click="sumarCantidad(50)">+50</button>
+                    </div>
+
+                    <div class="restock-input-row">
+                        <input
+                            type="number"
+                            min="1"
+                            x-model.number="cantidadIngreso"
+                            class="form-control lux-input restock-input"
+                            @keydown.enter.prevent="guardarAjuste()"
+                        >
+                        <span class="restock-input-unit">unidades</span>
+                    </div>
+                </div>
+
+                <!-- PREVIEW DEL NUEVO STOCK -->
+                <div class="restock-result-preview">
+                    <span>Nuevo stock resultante:</span>
+                    <strong class="result-number">
+                        <span x-text="nuevoStockCalculado"></span> unid.
+                    </strong>
+                </div>
+
+                <div x-show="modalError" class="field-error mt-2" x-text="modalError"></div>
+
+            </div>
+
+            <!-- PIE MODAL -->
+            <div class="restock-modal-footer">
+                <button
+                    type="button"
+                    class="btn btn-cancel"
+                    @click="cerrarModal()"
+                    :disabled="guardandoAjuste"
+                >
+                    Cancelar
+                </button>
+
+                <button
+                    type="button"
+                    class="btn btn-lux btn-confirm-restock"
+                    @click="guardarAjuste()"
+                    :disabled="guardandoAjuste || cantidadIngreso < 1"
+                >
+                    <span x-show="!guardandoAjuste">Confirmar ingreso</span>
+                    <span x-show="guardandoAjuste" style="display: none;">Guardando...</span>
+                </button>
+            </div>
+        </div>
+    </div>
+
+</div>
+
+
+<script>
+function inventarioManager() {
+    return {
+        busqueda: '',
+        filtroEstado: 'todos',
+        toastMensaje: '',
+        toastTimer: null,
+
+        // Modal de reposición
+        modalAbierto: false,
+        productoSeleccionado: null,
+        cantidadIngreso: 5,
+        guardandoAjuste: false,
+        modalError: '',
+
+        // Contadores KPI
+        kpis: {
+            total: {{ total_productos|default:0 }},
+            quiebre: {{ productos_quiebre|default:0 }},
+            sinStock: {{ productos_sin_stock|default:0 }}
+        },
+
+        init() {
+            this.aplicarFiltros();
+        },
+
+        get nuevoStockCalculado() {
+            if (!this.productoSeleccionado) return 0;
+            const cant = parseInt(this.cantidadIngreso) || 0;
+            return this.productoSeleccionado.stockActual + cant;
+        },
+
+        setFiltro(estado) {
+            this.filtroEstado = estado;
+            this.aplicarFiltros();
+        },
+
+        sumarCantidad(n) {
+            this.cantidadIngreso = (parseInt(this.cantidadIngreso) || 0) + n;
+        },
+
+        aplicarFiltros() {
+            const query = this.busqueda.trim().toLowerCase();
+            const cards = document.querySelectorAll('[data-product-card]');
+            const emptyNotice = document.getElementById('inventory-live-empty');
+            let visibleCount = 0;
+
+            cards.forEach(card => {
+                const name = card.dataset.name || '';
+                const code = card.dataset.code || '';
+                const status = card.dataset.status || '';
+
+                const matchesQuery = !query || name.includes(query) || code.includes(query);
+                const matchesStatus = (this.filtroEstado === 'todos') || (status === this.filtroEstado);
+
+                if (matchesQuery && matchesStatus) {
+                    card.hidden = false;
+                    visibleCount++;
+                } else {
+                    card.hidden = true;
+                }
+            });
+
+            if (emptyNotice) {
+                emptyNotice.hidden = (visibleCount > 0);
+            }
+        },
+
+        abrirModal(id, nombre, stockActual, stockMinimo) {
+            this.productoSeleccionado = {
+                id: id,
+                nombre: nombre,
+                stockActual: stockActual,
+                stockMinimo: stockMinimo
+            };
+            this.cantidadIngreso = 5;
+            this.modalError = '';
+            this.modalAbierto = true;
+        },
+
+        cerrarModal() {
+            this.modalAbierto = false;
+            this.productoSeleccionado = null;
+            this.modalError = '';
+        },
+
+        async guardarAjuste() {
+            if (this.guardandoAjuste || !this.productoSeleccionado) return;
+            const cant = parseInt(this.cantidadIngreso);
+            if (!cant || cant < 1) {
+                this.modalError = 'Ingresa una cantidad mayor a 0.';
+                return;
+            }
+
+            this.guardandoAjuste = true;
+            this.modalError = '';
+
+            const url = `/productos/${this.productoSeleccionado.id}/ajustar-stock/`;
+            const formData = new FormData();
+            formData.append('cantidad', cant);
+
+            // Obtener CSRF token
+            const csrfToken = document.querySelector('[name=csrfmiddlewaretoken]')?.value 
+                || (document.cookie.match(/csrftoken=([^;]+)/) || [])[1] || '';
+
+            try {
+                const response = await fetch(url, {
+                    method: 'POST',
+                    body: formData,
+                    headers: {
+                        'X-CSRFToken': csrfToken,
+                        'X-Requested-With': 'XMLHttpRequest'
+                    }
+                });
+
+                const data = await response.json();
+
+                if (!response.ok || !data.ok) {
+                    this.modalError = data.error || 'No se pudo actualizar el stock.';
+                    return;
+                }
+
+                // Actualizar la card en el DOM
+                this.actualizarCardDom(data);
+
+                // Recalcular KPIs
+                this.recalcularKpis();
+
+                // Mostrar toast de éxito
+                this.mostrarToast(`¡Se agregaron +${cant} unid. a ${this.productoSeleccionado.nombre}!`);
+
+                this.cerrarModal();
+
+            } catch (err) {
+                this.modalError = 'Error de conexión con el servidor.';
+            } finally {
+                this.guardandoAjuste = false;
+            }
+        },
+
+        actualizarCardDom(data) {
+            const card = document.querySelector(`[data-id="${data.producto_id}"]`);
+            if (!card) return;
+
+            // Actualizar dataset
+            card.dataset.stock = data.stock_actual;
+            card.dataset.status = data.estado;
+
+            // Actualizar número en DOM
+            const displaySpan = card.querySelector('[data-stock-display]');
+            if (displaySpan) {
+                displaySpan.textContent = data.stock_actual;
+            }
+
+            // Actualizar badge
+            const badge = card.querySelector('[data-badge]');
+            if (badge) {
+                badge.className = 'status-badge ' + (
+                    data.estado === 'empty' ? 'status-danger' : 
+                    data.estado === 'low' ? 'status-warning' : 'status-active'
+                );
+                badge.textContent = data.estado_label;
+            }
+
+            // Actualizar caja de stock
+            const box = card.querySelector('[data-actual-box]');
+            if (box) {
+                box.className = 'stock-box-actual ' + (
+                    data.estado === 'empty' ? 'is-out' : 
+                    data.estado === 'low' ? 'is-low' : ''
+                );
+            }
+
+            // Actualizar barra de progreso
+            const bar = card.querySelector('[data-progress-bar]');
+            if (bar) {
+                bar.className = 'stock-progress-bar ' + (
+                    data.estado === 'empty' ? 'bar-empty' : 
+                    data.estado === 'low' ? 'bar-low' : 'bar-ok'
+                );
+                bar.style.width = (data.estado === 'empty' ? '0%' : (data.estado === 'low' ? '40%' : '100%'));
+            }
+
+            // Reaplicar filtros por si el estado cambió
+            this.aplicarFiltros();
+        },
+
+        recalcularKpis() {
+            const cards = document.querySelectorAll('[data-product-card]');
+            let total = cards.length;
+            let quiebre = 0;
+            let sinStock = 0;
+
+            cards.forEach(card => {
+                const st = card.dataset.status;
+                if (st === 'empty') {
+                    sinStock++;
+                    quiebre++;
+                } else if (st === 'low') {
+                    quiebre++;
+                }
+            });
+
+            this.kpis.total = total;
+            this.kpis.quiebre = quiebre;
+            this.kpis.sinStock = sinStock;
+        },
+
+        mostrarToast(msg) {
+            this.toastMensaje = msg;
+            if (this.toastTimer) clearTimeout(this.toastTimer);
+            this.toastTimer = setTimeout(() => {
+                this.toastMensaje = '';
+            }, 3500);
+        }
+    };
+}
+</script>
 
 {% endblock %}

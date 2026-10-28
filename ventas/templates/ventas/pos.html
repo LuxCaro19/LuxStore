@@ -14,8 +14,9 @@ Venta | LuxStore
 {{ fiadores_data|json_script:"fiadores-data" }}
 
 
-<div
-    x-data="{
+<script>
+function posManager(crearRapidoUrl, buscarProductosUrl, confirmarVentaUrl) {
+    return {
         busqueda: '',
         resultados: [],
         venta: [],
@@ -47,6 +48,10 @@ Venta | LuxStore
         guardandoFiador: false,
         errorFiador: '',
 
+        // Gestión de ventas en espera (Opción A)
+        ventasEnEspera: [],
+        notificacionPausa: '',
+
         init() {
             const el = document.getElementById('fiadores-data');
             if (el && el.textContent) {
@@ -56,18 +61,129 @@ Venta | LuxStore
                     this.fiadores = [];
                 }
             }
+            this.cargarEsperaLocalStorage();
+
             window.addEventListener('message', (e) => {
                 if (e.data && e.data.accion === 'cerrarModalTicket') {
                     this.cerrarModalTicket();
                 }
             });
+
+            window.addEventListener('keydown', (e) => {
+                if (this.mostrarConfirmacion || this.mostrarModalTicket) return;
+                if (e.key === 'F4') {
+                    e.preventDefault();
+                    this.pausarVenta();
+                } else if (e.key === 'F2') {
+                    e.preventDefault();
+                    if (this.$refs.busqueda) this.$refs.busqueda.focus();
+                }
+            });
+        },
+
+        pausarVenta() {
+            if (this.venta.length === 0) return;
+
+            const ahora = new Date();
+            const horaStr = ahora.toLocaleTimeString('es-CL', { hour: '2-digit', minute: '2-digit' });
+
+            const ventaPausada = {
+                id: Date.now(),
+                fechaHora: horaStr,
+                items: JSON.parse(JSON.stringify(this.venta)),
+                total: this.total(),
+                totalItems: this.totalUnidades(),
+                productoDetalle: this.productoDetalle ? JSON.parse(JSON.stringify(this.productoDetalle)) : null
+            };
+
+            this.ventasEnEspera.unshift(ventaPausada);
+            this.guardarEsperaLocalStorage();
+
+            this.venta = [];
+            this.productoDetalle = null;
+            this.busqueda = '';
+            this.resultados = [];
+
+            this.notificacionPausa = 'Venta en espera guardada (#1). Caja libre para el siguiente cliente.';
+            setTimeout(() => {
+                this.notificacionPausa = '';
+            }, 6000);
+
+            this.$nextTick(() => {
+                if (this.$refs.busqueda) this.$refs.busqueda.focus();
+            });
+        },
+
+        recuperarVenta(idx) {
+            if (idx < 0 || idx >= this.ventasEnEspera.length) return;
+
+            const pausada = this.ventasEnEspera[idx];
+
+            if (this.venta.length > 0) {
+                const ahora = new Date();
+                const horaStr = ahora.toLocaleTimeString('es-CL', { hour: '2-digit', minute: '2-digit' });
+                const actualPausada = {
+                    id: Date.now(),
+                    fechaHora: horaStr,
+                    items: JSON.parse(JSON.stringify(this.venta)),
+                    total: this.total(),
+                    totalItems: this.totalUnidades(),
+                    productoDetalle: this.productoDetalle ? JSON.parse(JSON.stringify(this.productoDetalle)) : null
+                };
+                this.ventasEnEspera.splice(idx, 1, actualPausada);
+            } else {
+                this.ventasEnEspera.splice(idx, 1);
+            }
+
+            this.guardarEsperaLocalStorage();
+
+            this.venta = JSON.parse(JSON.stringify(pausada.items));
+            this.productoDetalle = pausada.productoDetalle ? JSON.parse(JSON.stringify(pausada.productoDetalle)) : null;
+            this.mensajeCobro = '';
+            this.ventaRealizada = false;
+
+            this.$nextTick(() => {
+                if (this.$refs.busqueda) this.$refs.busqueda.focus();
+            });
+        },
+
+        descartarVenta(idx) {
+            if (idx < 0 || idx >= this.ventasEnEspera.length) return;
+            this.ventasEnEspera.splice(idx, 1);
+            this.guardarEsperaLocalStorage();
+        },
+
+        vaciarCarrito() {
+            if (this.venta.length === 0) return;
+            this.venta = [];
+            this.productoDetalle = null;
+            this.busqueda = '';
+            this.resultados = [];
+            this.mensajeCobro = '';
+            this.$nextTick(() => {
+                if (this.$refs.busqueda) this.$refs.busqueda.focus();
+            });
+        },
+
+        guardarEsperaLocalStorage() {
+            try {
+                localStorage.setItem('lux_pos_held_sales', JSON.stringify(this.ventasEnEspera));
+            } catch (e) {}
+        },
+
+        cargarEsperaLocalStorage() {
+            try {
+                const guardadas = localStorage.getItem('lux_pos_held_sales');
+                if (guardadas) {
+                    this.ventasEnEspera = JSON.parse(guardadas);
+                }
+            } catch (e) {
+                this.ventasEnEspera = [];
+            }
         },
 
         abrirConfirmacion() {
-
-            if (this.venta.length === 0) {
-                return;
-            }
+            if (this.venta.length === 0) return;
 
             this.mensajeCobro = '';
             this.medioPago = 'EFECTIVO';
@@ -137,7 +253,7 @@ Venta | LuxStore
             const csrfToken = document.querySelector('[name=csrfmiddlewaretoken]').value;
 
             try {
-                const res = await fetch(`{% url 'fiadores:crear_rapido' %}`, {
+                const res = await fetch(crearRapidoUrl, {
                     method: 'POST',
                     credentials: 'same-origin',
                     headers: {
@@ -165,193 +281,123 @@ Venta | LuxStore
         },
 
         cerrarConfirmacion() {
-
-            if (this.cobrando) {
-                return;
-            }
-
+            if (this.cobrando) return;
             this.mostrarConfirmacion = false;
-
             this.$nextTick(() => {
-                this.$refs.busqueda.focus();
+                if (this.$refs.busqueda) this.$refs.busqueda.focus();
             });
         },
 
         totalUnidades() {
-
-            return this.venta.reduce(
-                (total, item) => total + item.cantidad,
-                0
-            );
+            return this.venta.reduce((total, item) => total + item.cantidad, 0);
         },
 
-
         async buscar() {
-
             const texto = this.busqueda.trim();
-
             if (!texto) {
                 this.resultados = [];
                 return;
             }
 
             this.buscando = true;
-
             try {
-
                 const respuesta = await fetch(
-                    `{% url 'ventas:buscar_productos' %}?q=${encodeURIComponent(texto)}`
+                    buscarProductosUrl + '?q=' + encodeURIComponent(texto)
                 );
-
                 const datos = await respuesta.json();
-
                 this.resultados = datos.productos;
-
             } catch (error) {
-
                 this.resultados = [];
-
             } finally {
-
                 this.buscando = false;
-
             }
         },
 
-
         async agregarPrimero() {
-
             const texto = this.busqueda.trim();
-
-            if (!texto) {
-                return;
-            }
+            if (!texto) return;
 
             await this.buscar();
-
             if (this.resultados.length === 1) {
                 this.agregarProducto(this.resultados[0]);
             }
         },
 
-
         agregarProducto(producto) {
-
-            const existente = this.venta.find(
-                item => item.id === producto.id
-            );
-
+            const existente = this.venta.find(item => item.id === producto.id);
             if (existente) {
-
                 existente.cantidad += 1;
-
             } else {
-
                 this.venta.push({
                     ...producto,
                     cantidad: 1
                 });
-
             }
 
-            // Mostramos el último producto leído
             this.productoDetalle = producto;
-
             this.busqueda = '';
             this.resultados = [];
-
             this.mensajeCobro = '';
             this.ventaRealizada = false;
 
             this.$nextTick(() => {
-                this.$refs.busqueda.focus();
+                if (this.$refs.busqueda) this.$refs.busqueda.focus();
             });
         },
 
         cantidadEnVenta(producto) {
-
-            const item = this.venta.find(
-                item => item.id === producto.id
-            );
-
+            const item = this.venta.find(item => item.id === producto.id);
             return item ? item.cantidad : 0;
         },
 
         stockBajo(producto) {
-
             return producto.stock_actual <= producto.stock_minimo;
         },
-
 
         aumentar(item) {
             item.cantidad += 1;
         },
 
-
         disminuir(item) {
-
             if (item.cantidad > 1) {
-
                 item.cantidad -= 1;
-
             } else {
-
                 this.eliminar(item);
-
             }
-
         },
-
 
         eliminar(item) {
-
-            this.venta = this.venta.filter(
-                producto => producto.id !== item.id
-            );
-
+            this.venta = this.venta.filter(producto => producto.id !== item.id);
         },
-
 
         total() {
-
             return this.venta.reduce(
-                (total, item) =>
-                    total + (item.precio * item.cantidad),
+                (total, item) => total + (item.precio * item.cantidad),
                 0
             );
-
         },
-
 
         moneda(valor) {
-
-            return '$' + new Intl.NumberFormat(
-                'es-CL'
-            ).format(valor);
-
+            return '$' + new Intl.NumberFormat('es-CL').format(valor);
         },
-
 
         abrirVisorTicket(id) {
             const ventaId = id || this.ultimaVentaId || this.ticketVentaId;
             if (!ventaId) return;
             this.ticketVentaId = ventaId;
-            this.ticketIframeUrl = `/ventas/${ventaId}/ticket/?autoprint=1`;
+            this.ticketIframeUrl = '/ventas/' + ventaId + '/ticket/?autoprint=1';
             this.modalTicketModo = 'visor';
             this.mostrarModalTicket = true;
         },
-
 
         imprimirTicket(id) {
             this.abrirVisorTicket(id);
         },
 
-
         confirmarImpresionTicket() {
             if (!this.ticketVentaId) return;
             this.abrirVisorTicket(this.ticketVentaId);
         },
-
 
         cerrarModalTicket() {
             this.mostrarModalTicket = false;
@@ -364,31 +410,22 @@ Venta | LuxStore
             });
         },
 
-
         async confirmarVenta() {
-
-            if (this.venta.length === 0 || this.cobrando) {
-                return;
-            }
+            if (this.venta.length === 0 || this.cobrando) return;
 
             this.cobrando = true;
             this.ventaRealizada = false;
             this.mensajeCobro = '';
 
-            const csrfToken = document.querySelector(
-                '[name=csrfmiddlewaretoken]'
-            ).value;
-
+            const csrfToken = document.querySelector('[name=csrfmiddlewaretoken]').value;
             const items = this.venta.map(item => ({
                 id: item.id,
                 cantidad: item.cantidad
             }));
 
             try {
-
                 if (this.medioPago === 'FIADO' && !this.fiadorId) {
-                    this.mensajeCobro =
-                        'Selecciona un fiador para continuar.';
+                    this.mensajeCobro = 'Selecciona un fiador para continuar.';
                     return;
                 }
 
@@ -406,35 +443,24 @@ Venta | LuxStore
                     monto_recibido: (this.medioPago === 'EFECTIVO' && this.montoRecibido !== '') ? parseInt(this.montoRecibido, 10) : null
                 };
 
-                const respuesta = await fetch(
-                    `{% url 'ventas:confirmar_venta' %}`,
-                    {
-                        method: 'POST',
-
-                        credentials: 'same-origin',
-
-                        headers: {
-                            'Content-Type': 'application/json',
-                            'X-CSRFToken': csrfToken,
-                            'X-Requested-With': 'XMLHttpRequest'
-                        },
-
-                        body: JSON.stringify(payload)
-                    }
-                );
+                const respuesta = await fetch(confirmarVentaUrl, {
+                    method: 'POST',
+                    credentials: 'same-origin',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'X-CSRFToken': csrfToken,
+                        'X-Requested-With': 'XMLHttpRequest'
+                    },
+                    body: JSON.stringify(payload)
+                });
 
                 const datos = await respuesta.json();
 
                 if (!respuesta.ok) {
-
-                    this.mensajeCobro =
-                        datos.mensaje
-                        || 'No fue posible registrar la venta.';
-
+                    this.mensajeCobro = datos.mensaje || 'No fue posible registrar la venta.';
                     return;
                 }
 
-                // Si fue fiada, actualizamos el saldo del fiador inmediatamente en la lista
                 if (this.esFiado && this.fiadorId) {
                     const fiadorActual = this.fiadores.find(f => String(f.id) === String(this.fiadorId));
                     if (fiadorActual) {
@@ -448,7 +474,6 @@ Venta | LuxStore
                 this.resultados = [];
                 this.mostrarConfirmacion = false;
 
-                // Datos para el modal de impresión de ticket
                 this.ticketVentaId = datos.venta_id;
                 this.ticketTotal = datos.total || 0;
                 this.ticketMedioPago = datos.medio_pago || this.medioPago;
@@ -459,36 +484,29 @@ Venta | LuxStore
 
                 this.ventaRealizada = true;
                 this.ultimaVentaId = datos.venta_id;
-
-                this.mensajeCobro =
-                    `Venta #${datos.venta_id} registrada correctamente`;
+                this.mensajeCobro = 'Venta #' + datos.venta_id + ' registrada correctamente';
 
                 setTimeout(() => {
-
                     this.ventaRealizada = false;
                     this.mensajeCobro = '';
-
                 }, 7000);
 
                 this.$nextTick(() => {
-                    this.$refs.busqueda.focus();
+                    if (this.$refs.busqueda) this.$refs.busqueda.focus();
                 });
 
             } catch (error) {
-
-                this.mensajeCobro =
-                    'No fue posible conectar con el servidor.';
-
+                this.mensajeCobro = 'No fue posible conectar con el servidor.';
             } finally {
-
                 this.cobrando = false;
-
             }
         }
+    };
+}
+</script>
 
-
-        
-    }"
+<div
+    x-data="posManager('{% url 'fiadores:crear_rapido' %}', '{% url 'ventas:buscar_productos' %}', '{% url 'ventas:confirmar_venta' %}')"
 >
 
 
@@ -791,9 +809,93 @@ Venta | LuxStore
 
                     </div>
 
+                    <!-- ACCIONES DE CABECERA: EN ESPERA Y VACIAR -->
+                    <div class="pos-sale-header-actions" x-show="venta.length > 0" x-cloak>
+                        <button
+                            type="button"
+                            class="btn-pause-sale"
+                            @click="pausarVenta()"
+                            title="Poner en espera esta venta para atender a otro cliente (F4)"
+                        >
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" class="pause-svg">
+                                <rect x="6" y="4" width="4" height="16"></rect>
+                                <rect x="14" y="4" width="4" height="16"></rect>
+                            </svg>
+                            <span>En espera (F4)</span>
+                        </button>
+
+                        <button
+                            type="button"
+                            class="btn-clear-cart"
+                            @click="if (confirm('¿Vaciar los productos de la venta actual?')) vaciarCarrito()"
+                            title="Vaciar carrito actual"
+                        >
+                            ✕
+                        </button>
+                    </div>
+
                 </div>
 
+                <!-- NOTIFICACIÓN DE VENTA EN ESPERA -->
+                <div
+                    class="pos-pause-toast"
+                    x-show="notificacionPausa"
+                    x-transition
+                    x-cloak
+                >
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width: 15px; height: 15px; flex-shrink: 0;">
+                        <circle cx="12" cy="12" r="10"></circle>
+                        <polyline points="12 6 12 12 16 14"></polyline>
+                    </svg>
+                    <span x-text="notificacionPausa"></span>
+                </div>
 
+                <!-- BANNER DE CLIENTES / VENTAS EN ESPERA -->
+                <div
+                    class="pos-held-sales-banner"
+                    x-show="ventasEnEspera.length > 0"
+                    x-transition
+                    x-cloak
+                >
+                    <div class="held-sales-header">
+                        <div class="held-sales-title">
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" class="held-icon-svg">
+                                <circle cx="12" cy="12" r="10"></circle>
+                                <polyline points="12 6 12 12 16 14"></polyline>
+                            </svg>
+                            <span x-text="ventasEnEspera.length === 1 ? '1 cliente en espera' : ventasEnEspera.length + ' clientes en espera'"></span>
+                        </div>
+                    </div>
+
+                    <div class="held-sales-list">
+                        <template x-for="(espera, idx) in ventasEnEspera" :key="espera.id">
+                            <div class="held-sale-chip">
+                                <div class="held-chip-info">
+                                    <strong class="held-chip-time" x-text="'Cliente #' + (idx + 1) + ' · ' + espera.fechaHora"></strong>
+                                    <span class="held-chip-meta" x-text="espera.totalItems + ' unid. · ' + moneda(espera.total)"></span>
+                                </div>
+                                <div class="held-chip-actions">
+                                    <button
+                                        type="button"
+                                        class="btn-resume-held"
+                                        @click="recuperarVenta(idx)"
+                                        title="Continuar con la venta de este cliente"
+                                    >
+                                        Recuperar ↵
+                                    </button>
+                                    <button
+                                        type="button"
+                                        class="btn-discard-held"
+                                        @click="descartarVenta(idx)"
+                                        title="Descartar esta venta pausada"
+                                    >
+                                        ✕
+                                    </button>
+                                </div>
+                            </div>
+                        </template>
+                    </div>
+                </div>
 
                 <!-- MENSAJE DE COBRO -->
                 <div
@@ -815,7 +917,12 @@ Venta | LuxStore
                                 class="btn-pos-ticket"
                                 @click="imprimirTicket(ultimaVentaId)"
                             >
-                                🖨️ Imprimir ticket
+                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width: 14px; height: 14px; margin-right: 6px;">
+                                    <polyline points="6 9 6 2 18 2 18 9"></polyline>
+                                    <path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"></path>
+                                    <rect x="6" y="14" width="12" height="8"></rect>
+                                </svg>
+                                <span>Imprimir ticket</span>
                             </button>
                         </div>
                     </template>
@@ -1044,7 +1151,13 @@ Venta | LuxStore
                         :class="{ 'active': medioPago === 'EFECTIVO' }"
                         @click="cambiarMedioPago('EFECTIVO')"
                     >
-                        <span class="lux-payment-icon">💵</span>
+                        <span class="lux-payment-icon">
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                <rect x="2" y="6" width="20" height="12" rx="2"></rect>
+                                <circle cx="12" cy="12" r="2"></circle>
+                                <path d="M6 12h.01M18 12h.01"></path>
+                            </svg>
+                        </span>
                         <strong>Efectivo</strong>
                     </button>
 
@@ -1054,7 +1167,12 @@ Venta | LuxStore
                         :class="{ 'active': medioPago === 'TARJETA' }"
                         @click="cambiarMedioPago('TARJETA')"
                     >
-                        <span class="lux-payment-icon">💳</span>
+                        <span class="lux-payment-icon">
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                <rect x="1" y="4" width="22" height="16" rx="2"></rect>
+                                <line x1="1" y1="10" x2="23" y2="10"></line>
+                            </svg>
+                        </span>
                         <strong>Tarjeta</strong>
                     </button>
 
@@ -1064,7 +1182,12 @@ Venta | LuxStore
                         :class="{ 'active': medioPago === 'FIADO' }"
                         @click="cambiarMedioPago('FIADO')"
                     >
-                        <span class="lux-payment-icon">👤</span>
+                        <span class="lux-payment-icon">
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path>
+                                <circle cx="12" cy="7" r="4"></circle>
+                            </svg>
+                        </span>
                         <strong>Fiado</strong>
                     </button>
                 </div>
@@ -1388,7 +1511,12 @@ Venta | LuxStore
                     class="btn btn-lux btn-imprimir-ticket"
                     @click="confirmarImpresionTicket()"
                 >
-                    🖨️ Imprimir (Enter)
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width: 14px; height: 14px; margin-right: 6px;">
+                        <polyline points="6 9 6 2 18 2 18 9"></polyline>
+                        <path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"></path>
+                        <rect x="6" y="14" width="12" height="8"></rect>
+                    </svg>
+                    <span>Imprimir (Enter)</span>
                 </button>
             </div>
         </div>

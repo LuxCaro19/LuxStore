@@ -7,17 +7,25 @@
 
 {% block content %}
 
-<div class="users-form-page-wrapper">
+<div class="users-form-page-wrapper" style="max-width: 680px; margin: 0 auto;">
 
-    <div class="page-header">
+    <div class="product-page-top">
+        <a
+            href="{% url 'usuarios:lista' %}"
+            class="back-link"
+        >
+            <svg class="back-svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <line x1="19" y1="12" x2="5" y2="12"></line>
+                <polyline points="12 19 5 12 12 5"></polyline>
+            </svg>
+            <span>Volver a usuarios</span>
+        </a>
+    </div>
+
+    <div class="page-header" style="margin-bottom: 20px;">
         <div>
             <h1 class="page-title">{{ titulo }}</h1>
-            <p class="page-subtitle">Configura los accesos, credenciales y rol del usuario.</p>
-        </div>
-        <div>
-            <a href="{% url 'usuarios:lista' %}" class="btn-cancel">
-                ← Volver a usuarios
-            </a>
+            <p class="page-subtitle">Configura los accesos, credenciales y rol del personal de la tienda.</p>
         </div>
     </div>
 
@@ -42,7 +50,12 @@
                         Nombre completo / Descriptivo *
                     </label>
                     <div class="form-input-wrap">
-                        <span class="form-input-icon">👤</span>
+                        <span class="form-input-icon">
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path>
+                                <circle cx="12" cy="7" r="4"></circle>
+                            </svg>
+                        </span>
                         {{ form.first_name }}
                     </div>
                     {% if form.first_name.errors %}
@@ -57,10 +70,17 @@
                             Nombre de usuario (Login) *
                         </label>
                         <div class="form-input-wrap">
-                            <span class="form-input-icon">🆔</span>
+                            <span class="form-input-icon">
+                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                    <rect x="3" y="4" width="18" height="16" rx="2"></rect>
+                                    <circle cx="9" cy="10" r="2"></circle>
+                                    <line x1="15" y1="8" x2="17" y2="8"></line>
+                                    <line x1="15" y1="12" x2="17" y2="12"></line>
+                                </svg>
+                            </span>
                             {{ form.username }}
                         </div>
-                        <small class="form-help-text">El nombre que utilizará para iniciar sesión en el sistema.</small>
+                        <small class="form-help-text">El identificador único que utilizará para iniciar sesión en la tienda.</small>
                         {% if form.username.errors %}
                             <div class="field-error">{{ form.username.errors.0 }}</div>
                         {% endif %}
@@ -82,12 +102,22 @@
                             tabindex="0"
                         >
                             <div class="role-card-top">
-                                <span class="role-card-icon">🛒</span>
+                                <span class="role-card-icon icon-visita">
+                                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                        <rect x="2" y="3" width="20" height="14" rx="2" ry="2"></rect>
+                                        <line x1="8" y1="21" x2="16" y2="21"></line>
+                                        <line x1="12" y1="17" x2="12" y2="21"></line>
+                                    </svg>
+                                </span>
                                 <div class="role-card-title-group">
                                     <strong class="role-card-title">Visita (Caja)</strong>
                                     <span class="role-card-tag tag-visita">Cajero / Operador</span>
                                 </div>
-                                <span class="role-card-check" x-show="rolActual === 'VISITA'">✓</span>
+                                <span class="role-card-check" x-show="rolActual === 'VISITA'">
+                                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                                        <polyline points="20 6 9 17 4 12"></polyline>
+                                    </svg>
+                                </span>
                             </div>
                             <p class="role-card-desc">
                                 Acceso exclusivo al <strong>Punto de Venta (POS)</strong> y al <strong>Corte Diario</strong> para consultar movimientos y cerrar su caja.
@@ -103,12 +133,20 @@
                             tabindex="0"
                         >
                             <div class="role-card-top">
-                                <span class="role-card-icon">🛡️</span>
+                                <span class="role-card-icon icon-admin">
+                                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                        <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"></path>
+                                    </svg>
+                                </span>
                                 <div class="role-card-title-group">
                                     <strong class="role-card-title">Administrador</strong>
                                     <span class="role-card-tag tag-admin">Acceso Total</span>
                                 </div>
-                                <span class="role-card-check" x-show="rolActual === 'ADMIN'">✓</span>
+                                <span class="role-card-check" x-show="rolActual === 'ADMIN'">
+                                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                                        <polyline points="20 6 9 17 4 12"></polyline>
+                                    </svg>
+                                </span>
                             </div>
                             <p class="role-card-desc">
                                 Acceso total a todo el sistema: <strong>inventario, costos de compra, catálogo, historial general, fiadores y usuarios</strong>.
@@ -128,7 +166,12 @@
                             Contraseña inicial *
                         </label>
                         <div class="form-input-wrap">
-                            <span class="form-input-icon">🔒</span>
+                            <span class="form-input-icon">
+                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                    <rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect>
+                                    <path d="M7 11V7a5 5 0 0 1 10 0v4"></path>
+                                </svg>
+                            </span>
                             <input
                                 id="{{ form.password.id_for_label }}"
                                 :type="verPass ? 'text' : 'password'"
@@ -144,7 +187,14 @@
                                 @click="verPass = !verPass"
                                 title="Ver u ocultar contraseña"
                             >
-                                <span x-text="verPass ? '🙈' : '👁️'"></span>
+                                <svg x-show="!verPass" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="password-svg">
+                                    <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path>
+                                    <circle cx="12" cy="12" r="3"></circle>
+                                </svg>
+                                <svg x-show="verPass" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="password-svg" style="display: none;">
+                                    <path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24"></path>
+                                    <line x1="1" y1="1" x2="23" y2="23"></line>
+                                </svg>
                             </button>
                         </div>
                         {% if form.password.errors %}
@@ -160,7 +210,12 @@
                             Nueva contraseña
                         </label>
                         <div class="form-input-wrap">
-                            <span class="form-input-icon">🔒</span>
+                            <span class="form-input-icon">
+                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                    <rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect>
+                                    <path d="M7 11V7a5 5 0 0 1 10 0v4"></path>
+                                </svg>
+                            </span>
                             <input
                                 id="{{ form.nueva_password.id_for_label }}"
                                 :type="verPass ? 'text' : 'password'"
@@ -175,7 +230,14 @@
                                 @click="verPass = !verPass"
                                 title="Ver u ocultar contraseña"
                             >
-                                <span x-text="verPass ? '🙈' : '👁️'"></span>
+                                <svg x-show="!verPass" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="password-svg">
+                                    <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path>
+                                    <circle cx="12" cy="12" r="3"></circle>
+                                </svg>
+                                <svg x-show="verPass" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="password-svg" style="display: none;">
+                                    <path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24"></path>
+                                    <line x1="1" y1="1" x2="23" y2="23"></line>
+                                </svg>
                             </button>
                         </div>
                         <small class="form-help-text">
@@ -217,9 +279,14 @@
             <!-- ACCIONES DEL FORMULARIO -->
             <div class="users-form-actions">
                 <button type="submit" class="btn btn-lux btn-user-save">
-                    {{ accion }}
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" style="width: 16px; height: 16px; margin-right: 6px;">
+                        <path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"></path>
+                        <polyline points="17 21 17 13 7 13 7 21"></polyline>
+                        <polyline points="7 3 7 8 15 8"></polyline>
+                    </svg>
+                    <span>{{ accion }}</span>
                 </button>
-                <a href="{% url 'usuarios:lista' %}" class="btn-cancel">
+                <a href="{% url 'usuarios:lista' %}" class="btn btn-cancel">
                     Cancelar
                 </a>
             </div>

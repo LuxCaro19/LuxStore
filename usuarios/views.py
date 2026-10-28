@@ -52,11 +52,26 @@ def lista_usuarios(request):
     """
     Panel administrativo: listado de usuarios con roles y estados.
     """
-    usuarios = (
+    usuarios = list(
         User.objects.select_related("perfil")
         .order_by("-is_superuser", "username")
     )
-    return render(request, "usuarios/lista.html", {"usuarios": usuarios})
+    total_usuarios = len(usuarios)
+    total_admins = sum(1 for u in usuarios if u.is_superuser or (hasattr(u, "perfil") and u.perfil.rol == "ADMIN"))
+    total_visitas = sum(1 for u in usuarios if not u.is_superuser and hasattr(u, "perfil") and u.perfil.rol == "VISITA")
+    total_activos = sum(1 for u in usuarios if u.is_active)
+
+    return render(
+        request,
+        "usuarios/lista.html",
+        {
+            "usuarios": usuarios,
+            "total_usuarios": total_usuarios,
+            "total_admins": total_admins,
+            "total_visitas": total_visitas,
+            "total_activos": total_activos,
+        },
+    )
 
 
 @admin_required

@@ -108,11 +108,31 @@ function crearCustomSelect() {
     return {
         abierto: false,
         opciones: [
-            { valor: '', texto: 'Todos los medios', icono: '🪙' },
-            { valor: 'EFECTIVO', texto: 'Efectivo', icono: '💵' },
-            { valor: 'TARJETA', texto: 'Tarjeta', icono: '💳' },
-            { valor: 'TRANSFERENCIA', texto: 'Transferencia', icono: '🔄' },
-            { valor: 'FIADO', texto: 'Fiado', icono: '👤' }
+            {
+                valor: '',
+                texto: 'Todos los medios',
+                svg: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="8" y1="6" x2="21" y2="6"></line><line x1="8" y1="12" x2="21" y2="12"></line><line x1="8" y1="18" x2="21" y2="18"></line><line x1="3" y1="6" x2="3.01" y2="6"></line><line x1="3" y1="12" x2="3.01" y2="12"></line><line x1="3" y1="18" x2="3.01" y2="18"></line></svg>'
+            },
+            {
+                valor: 'EFECTIVO',
+                texto: 'Efectivo',
+                svg: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="6" width="20" height="12" rx="2"></rect><circle cx="12" cy="12" r="2"></circle><path d="M6 12h.01M18 12h.01"></path></svg>'
+            },
+            {
+                valor: 'TARJETA',
+                texto: 'Tarjeta',
+                svg: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="1" y="4" width="22" height="16" rx="2" ry="2"></rect><line x1="1" y1="10" x2="23" y2="10"></line></svg>'
+            },
+            {
+                valor: 'TRANSFERENCIA',
+                texto: 'Transferencia',
+                svg: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="17 1 21 5 17 9"></polyline><path d="M3 11V9a4 4 0 0 1 4-4h14"></path><polyline points="7 23 3 19 7 15"></polyline><path d="M21 13v2a4 4 0 0 1-4 4H3"></path></svg>'
+            },
+            {
+                valor: 'FIADO',
+                texto: 'Fiado',
+                svg: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path><circle cx="12" cy="7" r="4"></circle></svg>'
+            }
         ],
         get opcionActual() {
             return this.opciones.find(o => o.valor === this.medioPago) || this.opciones[0];
@@ -123,18 +143,29 @@ function crearCustomSelect() {
         }
     };
 }
-</script>
 
-<div
-    class="history-page-wrapper"
-    x-data="{
+function historialManager(periodoInicial, desdeInicial, hastaInicial, medioPagoInicial, exportarExcelUrl) {
+    return {
         mostrarModalTicket: false,
         ticketVentaId: null,
         ticketIframeUrl: '',
-        periodoActivo: '{{ filtros.periodo|default:'todo' }}',
-        desde: '{{ filtros.desde|default:'' }}',
-        hasta: '{{ filtros.hasta|default:'' }}',
-        medioPago: '{{ filtros.medio_pago|default:'' }}',
+        periodoActivo: periodoInicial,
+        desde: desdeInicial,
+        hasta: hastaInicial,
+        medioPago: medioPagoInicial,
+        exportarExcelBaseUrl: exportarExcelUrl,
+
+        get urlExportarExcel() {
+            const params = new URLSearchParams();
+            const q = new URLSearchParams(window.location.search).get('q');
+            if (q) params.append('q', q);
+            if (this.periodoActivo && this.periodoActivo !== 'todo') params.append('periodo', this.periodoActivo);
+            if (this.desde) params.append('desde', this.desde);
+            if (this.hasta) params.append('hasta', this.hasta);
+            if (this.medioPago) params.append('medio_pago', this.medioPago);
+            const str = params.toString();
+            return this.exportarExcelBaseUrl + (str ? '?' + str : '');
+        },
 
         init() {
             window.addEventListener('message', (e) => {
@@ -147,7 +178,7 @@ function crearCustomSelect() {
         abrirModalTicket(id) {
             if (!id) return;
             this.ticketVentaId = id;
-            this.ticketIframeUrl = `/ventas/${id}/ticket/?autoprint=1`;
+            this.ticketIframeUrl = '/ventas/' + id + '/ticket/?autoprint=1';
             this.mostrarModalTicket = true;
         },
 
@@ -164,14 +195,14 @@ function crearCustomSelect() {
             const y = date.getFullYear();
             const m = String(date.getMonth() + 1).padStart(2, '0');
             const d = String(date.getDate()).padStart(2, '0');
-            return `${y}-${m}-${d}`;
+            return y + '-' + m + '-' + d;
         },
 
         formatoVisual(iso) {
             if (!iso) return '';
             const parts = iso.split('-');
             if (parts.length === 3) {
-                return `${parts[2]}/${parts[1]}/${parts[0]}`;
+                return parts[2] + '/' + parts[1] + '/' + parts[0];
             }
             return iso;
         },
@@ -207,14 +238,21 @@ function crearCustomSelect() {
             }
 
             this.$nextTick(() => {
-                document.getElementById('form-historial-filtros').submit();
+                const form = document.getElementById('form-historial-filtros');
+                if (form) form.submit();
             });
         },
 
         alCambiarFechaManual() {
             this.periodoActivo = 'custom';
         }
-    }"
+    };
+}
+</script>
+
+<div
+    class="history-page-wrapper"
+    x-data="historialManager('{{ filtros.periodo|default:'todo' }}', '{{ filtros.desde|default:'' }}', '{{ filtros.hasta|default:'' }}', '{{ filtros.medio_pago|default:'' }}', '{% url 'ventas:exportar_excel' %}')"
 >
 
     <!-- ENCABEZADO DE PÁGINA -->
@@ -227,6 +265,21 @@ function crearCustomSelect() {
                 Consulta, filtra y audita todas las transacciones históricas del sistema.
             </p>
         </div>
+
+        <a
+            :href="urlExportarExcel"
+            class="btn btn-lux-excel"
+            title="Descargar reporte en formato Excel (.xlsx)"
+        >
+            <svg class="excel-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
+                <polyline points="14 2 14 8 20 8"></polyline>
+                <line x1="8" y1="13" x2="16" y2="13"></line>
+                <line x1="8" y1="17" x2="16" y2="17"></line>
+                <polyline points="10 9 9 9 8 9"></polyline>
+            </svg>
+            <span>Exportar a Excel</span>
+        </a>
     </div>
 
     <!-- TARJETA DE FILTROS -->
@@ -299,7 +352,14 @@ function crearCustomSelect() {
                     :class="{ 'focus': abierto }"
                     @click="abierto = !abierto"
                 >
-                    <span class="lux-date-icon">📅</span>
+                    <span class="lux-date-icon">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width: 15px; height: 15px;">
+                            <rect x="3" y="4" width="18" height="18" rx="2" ry="2"></rect>
+                            <line x1="16" y1="2" x2="16" y2="6"></line>
+                            <line x1="8" y1="2" x2="8" y2="6"></line>
+                            <line x1="3" y1="10" x2="21" y2="10"></line>
+                        </svg>
+                    </span>
                     <span
                         class="lux-date-display-text"
                         :class="{ 'is-placeholder': !desde }"
@@ -380,7 +440,14 @@ function crearCustomSelect() {
                     :class="{ 'focus': abierto }"
                     @click="abierto = !abierto"
                 >
-                    <span class="lux-date-icon">📅</span>
+                    <span class="lux-date-icon">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width: 15px; height: 15px;">
+                            <rect x="3" y="4" width="18" height="18" rx="2" ry="2"></rect>
+                            <line x1="16" y1="2" x2="16" y2="6"></line>
+                            <line x1="8" y1="2" x2="8" y2="6"></line>
+                            <line x1="3" y1="10" x2="21" y2="10"></line>
+                        </svg>
+                    </span>
                     <span
                         class="lux-date-display-text"
                         :class="{ 'is-placeholder': !hasta }"
@@ -462,7 +529,7 @@ function crearCustomSelect() {
                     @click="abierto = !abierto"
                 >
                     <div class="lux-select-val">
-                        <span class="lux-select-icon" x-text="opcionActual.icono"></span>
+                        <span class="lux-select-icon" x-html="opcionActual.svg"></span>
                         <span class="lux-select-text" x-text="opcionActual.texto"></span>
                     </div>
                     <span class="lux-select-chevron" :class="{ 'rotated': abierto }">▾</span>
@@ -481,10 +548,14 @@ function crearCustomSelect() {
                             @click="seleccionar(opc.valor)"
                         >
                             <div class="lux-option-left">
-                                <span class="lux-option-icon" x-text="opc.icono"></span>
+                                <span class="lux-option-icon" x-html="opc.svg"></span>
                                 <span class="lux-option-label" x-text="opc.texto"></span>
                             </div>
-                            <span class="lux-option-check" x-show="medioPago === opc.valor">✓</span>
+                            <span class="lux-option-check" x-show="medioPago === opc.valor">
+                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="width: 13px; height: 13px;">
+                                    <polyline points="20 6 9 17 4 12"></polyline>
+                                </svg>
+                            </span>
                         </div>
                     </template>
                 </div>
@@ -505,7 +576,11 @@ function crearCustomSelect() {
 
             <div class="history-actions">
                 <button type="submit" class="btn btn-lux btn-history-filter">
-                    🔍 Filtrar
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" style="width: 14px; height: 14px; margin-right: 6px;">
+                        <circle cx="11" cy="11" r="8"></circle>
+                        <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
+                    </svg>
+                    <span>Filtrar</span>
                 </button>
                 <a href="{% url 'ventas:historial' %}" class="btn-cancel btn-history-clean" title="Limpiar todos los filtros">
                     Limpiar
@@ -620,7 +695,11 @@ function crearCustomSelect() {
                                     title="Imprimir ticket térmico #{{ venta.id }}"
                                     @click.stop="abrirModalTicket({{ venta.id }})"
                                 >
-                                    🖨️
+                                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width: 14px; height: 14px;">
+                                        <polyline points="6 9 6 2 18 2 18 9"></polyline>
+                                        <path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"></path>
+                                        <rect x="6" y="14" width="12" height="8"></rect>
+                                    </svg>
                                 </button>
                             </div>
                         </div>
@@ -633,7 +712,12 @@ function crearCustomSelect() {
                             x-cloak
                         >
                             <div class="daily-drawer-title">
-                                <span>📦 Artículos de la venta #{{ venta.id }} ({{ venta.creada_en|date:"d/m/Y H:i" }})</span>
+                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width: 15px; height: 15px; margin-right: 6px; color: var(--app-primary);">
+                                    <path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"></path>
+                                    <polyline points="3.27 6.96 12 12.01 20.73 6.96"></polyline>
+                                    <line x1="12" y1="22.08" x2="12" y2="12"></line>
+                                </svg>
+                                <span>Artículos de la venta #{{ venta.id }} ({{ venta.creada_en|date:"d/m/Y H:i" }})</span>
                             </div>
 
                             <table class="daily-drawer-table">
