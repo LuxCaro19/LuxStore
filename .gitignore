@@ -11,8 +11,13 @@ __pycache__/
 
 # Django
 db.sqlite3
+*.sqlite3
 staticfiles/
 media/
+
+# Build & Distribucion
+build/
+dist/
 
 # IDE
 .vscode/

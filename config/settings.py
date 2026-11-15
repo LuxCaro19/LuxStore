@@ -12,9 +12,15 @@ https://docs.djangoproject.com/en/6.1/ref/settings/
 
 from pathlib import Path
 import os
+import sys
 from dotenv import load_dotenv
+
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
-BASE_DIR = Path(__file__).resolve().parent.parent
+if getattr(sys, 'frozen', False):
+    BASE_DIR = Path(getattr(sys, '_MEIPASS', Path(sys.executable).parent))
+else:
+    BASE_DIR = Path(__file__).resolve().parent.parent
+
 load_dotenv(BASE_DIR / ".env")
 
 
@@ -79,16 +85,34 @@ WSGI_APPLICATION = 'config.wsgi.application'
 # Database
 # https://docs.djangoproject.com/en/6.1/ref/settings/#databases
 
-DATABASES = {
-    "default": {
-        "ENGINE": "django.db.backends.postgresql",
-        "NAME": os.getenv("DB_NAME"),
-        "USER": os.getenv("DB_USER"),
-        "PASSWORD": os.getenv("DB_PASSWORD"),
-        "HOST": os.getenv("DB_HOST"),
-        "PORT": os.getenv("DB_PORT"),
+USE_POSTGRES = os.getenv("USE_POSTGRES", "0").lower() in ("1", "true", "yes")
+
+if USE_POSTGRES and os.getenv("DB_NAME"):
+    DATABASES = {
+        "default": {
+            "ENGINE": "django.db.backends.postgresql",
+            "NAME": os.getenv("DB_NAME"),
+            "USER": os.getenv("DB_USER"),
+            "PASSWORD": os.getenv("DB_PASSWORD"),
+            "HOST": os.getenv("DB_HOST", "localhost"),
+            "PORT": os.getenv("DB_PORT", "5432"),
+        }
     }
-}
+else:
+    # Modo por defecto para aplicación de escritorio: SQLite local
+    if getattr(sys, "frozen", False):
+        appdata_dir = Path(os.getenv("LOCALAPPDATA", str(Path.home()))) / "LuxStore"
+        appdata_dir.mkdir(parents=True, exist_ok=True)
+        db_path = appdata_dir / "luxstore.sqlite3"
+    else:
+        db_path = BASE_DIR / "luxstore.sqlite3"
+
+    DATABASES = {
+        "default": {
+            "ENGINE": "django.db.backends.sqlite3",
+            "NAME": db_path,
+        }
+    }
 
 
 # Password validation
